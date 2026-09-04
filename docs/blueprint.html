@@ -1,0 +1,486 @@
+<title>Wealth Intelligence Technical Blueprint</title>
+<meta name="description" content="Full technical blueprint for the Julius Baer wealth-intelligence layer — architecture, the six-detector engine, grounded explanation, governance, testing and deployment.">
+<style>
+  :root{
+    --ink:#0c131f; --panel:#121d2c; --panel-2:#0f1826; --line:#26364a;
+    --fg:#e9e4d7; --fg-soft:#aab6c6; --fg-mute:#7c8aa1;
+    --gold:#c6a763; --gold-soft:#8f7a45; --teal:#6fb2c6; --danger:#c65a4c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%; scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ink); color:var(--fg);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    line-height:1.6; font-size:16px;
+    background-image:
+      radial-gradient(1100px 520px at 84% -8%, rgba(198,167,99,.09), transparent 60%),
+      linear-gradient(180deg,#0d1521 0%,#0b111b 100%);
+    background-attachment:fixed;
+  }
+  .sheet{max-width:1080px; margin:0 auto; padding:52px 28px 80px;}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.72rem;
+    letter-spacing:.32em; text-transform:uppercase; color:var(--gold); margin:0;}
+  h1{font-family:"Spectral",Georgia,serif; font-weight:600; font-size:clamp(2rem,4.8vw,3.1rem);
+    line-height:1.04; text-wrap:balance; margin:.5rem 0 .3rem; letter-spacing:-.01em;}
+  h1 .amp{color:var(--gold);}
+  .dek{max-width:66ch; color:var(--fg-soft); font-size:1.04rem; margin:.4rem 0 0;}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-size:.74rem;
+    color:var(--fg-mute); letter-spacing:.04em;}
+  .meta b{color:var(--fg-soft); font-weight:500;}
+
+  .stack{display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 8px;}
+  .chip{font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.05em;
+    color:var(--fg-soft); background:var(--panel); border:1px solid var(--line);
+    padding:5px 11px; border-radius:999px;}
+  .chip b{color:var(--gold); font-weight:600;}
+
+  section{margin-top:52px; scroll-margin-top:20px;}
+  h2{font-family:"Spectral",Georgia,serif; font-weight:600; font-size:1.55rem; margin:.1rem 0 .5rem;
+     display:flex; align-items:baseline; gap:.6rem; text-wrap:balance;}
+  h2 .num{font-family:"IBM Plex Mono",monospace; font-size:.9rem; color:var(--gold-soft);
+     letter-spacing:.1em; font-weight:600;}
+  h3{font-family:"IBM Plex Sans"; font-weight:600; font-size:1.02rem; color:var(--fg);
+     margin:1.4rem 0 .2rem;}
+  .prose p{max-width:74ch; color:var(--fg-soft); margin:.6rem 0;}
+  .prose ul{max-width:74ch; color:var(--fg-soft); padding-left:1.15rem; margin:.5rem 0;}
+  .prose li{margin:.32rem 0;}
+  .prose b, .prose strong{color:var(--fg); font-weight:600;}
+  em{color:var(--fg);}
+
+  .contents{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:6px 22px;
+    margin-top:14px; padding:18px 20px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:12px;}
+  .contents a{display:flex; gap:.7rem; align-items:baseline; text-decoration:none; padding:3px 0;
+    color:var(--fg-soft); font-size:.9rem;}
+  .contents a:hover{color:var(--gold);}
+  .contents .n{font-family:"IBM Plex Mono",monospace; color:var(--gold-soft); font-size:.78rem;}
+
+  figure{margin:22px 0 0; background:linear-gradient(180deg,var(--panel-2),#0d1622);
+    border:1px solid var(--line); border-radius:14px; padding:20px 20px 8px;
+    box-shadow:0 24px 60px -40px rgba(0,0,0,.8);}
+  .figwrap{overflow-x:auto;}
+  figure svg{display:block; width:100%; min-width:680px; height:auto;}
+  figcaption{color:var(--fg-mute); font-size:.82rem; margin:12px 4px 6px; max-width:80ch;}
+  figcaption b{color:var(--fg-soft); font-weight:500;}
+
+  .tbl{width:100%; margin-top:16px; font-size:.9rem; overflow-x:auto;}
+  .tbl table{width:100%; border-collapse:collapse; min-width:640px;}
+  th{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--gold-soft); text-align:left; font-weight:600;
+    padding:0 14px 10px; border-bottom:1px solid var(--line);}
+  td{padding:13px 14px; border-bottom:1px solid rgba(38,54,74,.5); color:var(--fg-soft);
+    vertical-align:top;}
+  td:first-child{color:var(--fg); font-weight:600;}
+  .path, td.mono{font-family:"IBM Plex Mono",monospace; font-size:.8rem; color:var(--teal);}
+  .cost{color:var(--fg-mute);}
+
+  pre.tree{font-family:"IBM Plex Mono",monospace; white-space:pre; overflow-x:auto;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; color:var(--fg-soft); font-size:.8rem; line-height:1.5; margin-top:14px;}
+  pre.tree .c{color:var(--gold-soft);}
+
+  .callout{border-left:3px solid var(--teal); background:rgba(111,178,198,.07);
+    padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; color:var(--fg-soft);
+    max-width:78ch;}
+  .callout.gold{border-left-color:var(--gold); background:rgba(198,167,99,.07);}
+
+  footer{margin-top:60px; padding-top:18px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--fg-mute); letter-spacing:.04em;}
+  a{color:var(--gold);}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<div class="sheet">
+  <header>
+    <p class="eyebrow">SingHacks 2026 · Julius Baer · Technical Blueprint</p>
+    <h1>Wealth Intelligence <span class="amp">—</span> Technical Blueprint</h1>
+    <p class="dek">The intelligence layer between portfolio data and the Relationship Manager.
+      A deterministic engine computes every signal from a private-banking book; a language model
+      only <em>explains</em> those signals. This document is written from the code that exists in
+      the repository — every architectural claim maps to a module under
+      <span class="path">wealth_intelligence/</span>.</p>
+    <div class="meta">
+      <span><b>Repository</b> — wj200/juliusbaer-wi</span>
+      <span><b>Interface</b> — Streamlit RM workbench</span>
+      <span><b>Engine</b> — pure standard-library Python</span>
+      <span><b>Signals</b> — 6 detectors · Σ severity² triage</span>
+      <span><b>Tests</b> — 16 passing</span>
+      <span><b>Data</b> — synthetic · 20 clients · 5 snapshots</span>
+    </div>
+    <div class="stack">
+      <span class="chip"><b>Python</b> · stdlib core</span>
+      <span class="chip"><b>Streamlit</b> · workbench</span>
+      <span class="chip"><b>Claude API</b> · Opus · explanation only</span>
+      <span class="chip"><b>Docker</b> · container deploy</span>
+      <span class="chip"><b>unittest</b> · 16 tests</span>
+      <span class="chip"><b>event_log.csv</b> · authoritative events</span>
+    </div>
+  </header>
+
+  <!-- 00 CONTENTS -->
+  <section id="contents">
+    <h2><span class="num">00</span> Contents</h2>
+    <div class="contents">
+      <a href="#s01"><span class="n">01</span> Executive summary &amp; architecture</a>
+      <a href="#s02"><span class="n">02</span> Technology stack</a>
+      <a href="#s03"><span class="n">03</span> The dataset &amp; ingestion</a>
+      <a href="#s04"><span class="n">04</span> The signal engine — six detectors</a>
+      <a href="#s05"><span class="n">05</span> The look-through resolver</a>
+      <a href="#s06"><span class="n">06</span> Grounded explanation</a>
+      <a href="#s07"><span class="n">07</span> The RM workbench</a>
+      <a href="#s08"><span class="n">08</span> Data-handling decisions</a>
+      <a href="#s09"><span class="n">09</span> Trust, governance &amp; compliance</a>
+      <a href="#s10"><span class="n">10</span> Testing strategy</a>
+      <a href="#s11"><span class="n">11</span> Deployment &amp; folder structure</a>
+      <a href="#s12"><span class="n">12</span> Roadmap</a>
+      <a href="#s13"><span class="n">13</span> Risks, limitations &amp; caveats</a>
+    </div>
+    <p class="prose" style="margin-top:14px; color:var(--fg-mute); font-size:.9rem;">
+      Sections 01–07 describe the system top to bottom; 08–09 are the parts a reviewer scrutinises
+      hardest — the data traps handled correctly and the compliance posture; 10–13 cover how it is
+      verified, shipped, and where it is honest about its own limits.</p>
+  </section>
+
+  <!-- 01 EXEC SUMMARY -->
+  <section id="s01">
+    <h2><span class="num">01</span> Executive summary &amp; system architecture</h2>
+    <div class="prose">
+      <p><b>The problem.</b> A Relationship Manager (RM) covers twenty private-banking clients across
+        Singapore and Hong Kong. Existing tools are <em>descriptive</em> — valuations, allocations,
+        performance — and leave the RM to manually interpret risk, market impact, tax and the next
+        action. The opportunity is an intelligence layer that moves the RM from
+        <em>"what does the portfolio look like?"</em> to <em>"what should I know, and what should I
+        do next?"</em></p>
+      <p><b>The approach.</b> Everything the system asserts is computed from the source files by a
+        deterministic engine. Each signal it raises carries its severity, a one-line reason an RM
+        could say aloud, the exact numbers behind it, and the source rows as evidence. Only after
+        that does a language model act — and it is handed those findings as <em>facts to explain</em>,
+        never as a problem to solve. That boundary is the whole compliance argument: no insight an RM
+        cannot defend, and no number a model invented.</p>
+      <p><b>The result.</b> A book-wide triage that answers the challenge's central question —
+        <em>who does the RM call first, and can she defend the ranking?</em> — drilling into each
+        client's story with a grounded explanation, and turning every insight into an action the RM
+        accepts, edits or dismisses.</p>
+    </div>
+
+    <figure>
+      <div class="figwrap">
+      <svg viewBox="0 0 1000 900" role="img" preserveAspectRatio="xMidYMin meet"
+           aria-label="Layered architecture: twelve source files feed a currency-aware data model and look-through resolver; six deterministic detectors produce ranked findings; a governance boundary separates the deterministic engine from a single grounded-explanation LLM component; the RM workbench renders book triage, client story and accept/edit/dismiss controls to the Relationship Manager.">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c6a763"/></marker>
+          <marker id="arwt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6fb2c6"/></marker>
+        </defs>
+        <style>
+          .band{fill:#111c2b; stroke:#26364a;} .box{fill:#0f1a28; stroke:#33465e;}
+          .lbl{font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.22em; fill:#8f7a45;}
+          .t{font-family:'IBM Plex Sans',sans-serif; fill:#e9e4d7;}
+          .ts{font-family:'IBM Plex Sans',sans-serif; fill:#aab6c6; font-size:12.5px;}
+          .mono{font-family:'IBM Plex Mono',monospace; fill:#8ea0b6; font-size:11.5px;}
+          .flow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.08em; fill:#c6a763;}
+          .conn{stroke:#c6a763; stroke-width:1.4; fill:none;}
+        </style>
+        <text x="26" y="60" class="lbl">INPUT</text>
+        <text x="26" y="78" class="lbl" style="fill:#5f6f86">12 files</text>
+        <rect class="band" x="120" y="40" width="760" height="80" rx="9"/>
+        <text x="140" y="66" class="t" font-size="14" font-weight="600">External data · 12 synthetic source files</text>
+        <text x="140" y="90" class="mono">holdings · transactions · instruments · credit_facilities · mandates · portfolios</text>
+        <text x="140" y="107" class="mono">clients · commitments · planned_cash_needs · market_context · event_log · rm_notes</text>
+        <line class="conn" x1="500" y1="120" x2="500" y2="148" marker-end="url(#arw)"/>
+        <text x="512" y="138" class="flow">join · convert to USD</text>
+        <text x="26" y="188" class="lbl">PHASE 0</text><text x="26" y="206" class="lbl" style="fill:#5f6f86">model</text>
+        <rect class="band" x="120" y="150" width="760" height="92" rx="9"/>
+        <rect class="box" x="140" y="168" width="350" height="56" rx="7"/>
+        <text x="158" y="192" class="t" font-size="13.5" font-weight="600">Book</text>
+        <text x="158" y="211" class="ts">joined · currency-aware · indexed</text>
+        <rect class="box" x="510" y="168" width="350" height="56" rx="7"/>
+        <text x="528" y="192" class="t" font-size="13.5" font-weight="600">Look-through resolver</text>
+        <text x="528" y="211" class="ts">stock + perpetual + note → one issuer</text>
+        <line class="conn" x1="500" y1="242" x2="500" y2="270" marker-end="url(#arw)"/>
+        <text x="512" y="260" class="flow">client_360 → detectors</text>
+        <text x="26" y="312" class="lbl">PHASE 1</text><text x="26" y="330" class="lbl" style="fill:#5f6f86">engine</text>
+        <rect class="band" x="120" y="272" width="760" height="150" rx="9"/>
+        <text x="140" y="296" class="t" font-size="13.5" font-weight="600">Signal engine · deterministic detectors</text>
+        <g>
+          <rect class="box" x="140" y="308" width="112" height="52" rx="6"/><text x="196" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Collateral</text><text x="196" y="347" text-anchor="middle" class="mono" font-size="10.5">LTV vs call</text>
+          <rect class="box" x="260" y="308" width="112" height="52" rx="6"/><text x="316" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Concentration</text><text x="316" y="347" text-anchor="middle" class="mono" font-size="10.5">look-through</text>
+          <rect class="box" x="380" y="308" width="112" height="52" rx="6"/><text x="436" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Mandate</text><text x="436" y="347" text-anchor="middle" class="mono" font-size="10.5">bands · excl.</text>
+          <rect class="box" x="500" y="308" width="112" height="52" rx="6"/><text x="556" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Liquidity</text><text x="556" y="347" text-anchor="middle" class="mono" font-size="10.5">net of pledge</text>
+          <rect class="box" x="620" y="308" width="112" height="52" rx="6"/><text x="676" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Income</text><text x="676" y="347" text-anchor="middle" class="mono" font-size="10.5">draw vs yield</text>
+          <rect class="box" x="740" y="308" width="112" height="52" rx="6"/><text x="796" y="330" text-anchor="middle" class="t" font-size="11" font-weight="600">Attribution</text><text x="796" y="347" text-anchor="middle" class="mono" font-size="10.5">event_log</text>
+        </g>
+        <rect class="box" x="140" y="374" width="720" height="36" rx="6" style="stroke:#c6a763"/>
+        <text x="500" y="397" text-anchor="middle" class="t" font-size="12.5" font-weight="600">Findings → Book triage · rank clients by Σ severity² · every finding carries facts + evidence</text>
+        <line x1="120" y1="446" x2="880" y2="446" stroke="#c6a763" stroke-width="1.4" stroke-dasharray="7 5"/>
+        <rect x="286" y="432" width="428" height="28" rx="14" fill="#1a2130" stroke="#c6a763"/>
+        <text x="500" y="450" text-anchor="middle" class="flow" style="fill:#d8bd7e">GOVERNANCE BOUNDARY · deterministic above · the model only explains below</text>
+        <line class="conn" x1="500" y1="460" x2="500" y2="486" marker-end="url(#arwt)" style="stroke:#6fb2c6"/>
+        <text x="512" y="477" class="flow" style="fill:#6fb2c6">explain · facts only</text>
+        <text x="26" y="524" class="lbl">PHASE 2</text><text x="26" y="542" class="lbl" style="fill:#5f6f86">explain</text>
+        <rect x="120" y="488" width="760" height="82" rx="9" fill="#0e1a22" stroke="#6fb2c6"/>
+        <text x="140" y="514" class="t" font-size="14" font-weight="600" fill="#cfe6ee">Grounded explanation · the only LLM in the system</text>
+        <text x="140" y="536" class="ts">Claude turns findings into a situation read, talking points and honest watch-outs —</text>
+        <text x="140" y="554" class="ts">handed only computed facts, client profile, RM notes and the cited events. Cached · offline-safe fallback.</text>
+        <line class="conn" x1="500" y1="570" x2="500" y2="596" marker-end="url(#arw)"/>
+        <text x="512" y="587" class="flow">render</text>
+        <text x="26" y="636" class="lbl">PHASE 3</text><text x="26" y="654" class="lbl" style="fill:#5f6f86">workbench</text>
+        <rect class="band" x="120" y="598" width="760" height="86" rx="9"/>
+        <text x="140" y="622" class="t" font-size="13.5" font-weight="600">RM workbench · Streamlit</text>
+        <rect class="box" x="140" y="632" width="220" height="40" rx="6"/><text x="250" y="657" text-anchor="middle" class="ts" style="fill:#e9e4d7">Book triage</text>
+        <rect class="box" x="392" y="632" width="220" height="40" rx="6"/><text x="502" y="657" text-anchor="middle" class="ts" style="fill:#e9e4d7">Client story + “Why?”</text>
+        <rect class="box" x="644" y="632" width="216" height="40" rx="6"/><text x="752" y="657" text-anchor="middle" class="ts" style="fill:#e9e4d7">Accept · Edit · Dismiss</text>
+        <path class="conn" d="M360 652 L392 652" marker-end="url(#arw)"/><path class="conn" d="M612 652 L644 652" marker-end="url(#arw)"/>
+        <line class="conn" x1="500" y1="684" x2="500" y2="710" marker-end="url(#arw)"/>
+        <text x="512" y="701" class="flow">decide</text>
+        <rect x="300" y="712" width="400" height="58" rx="9" fill="#171d2b" stroke="#c6a763"/>
+        <text x="500" y="738" text-anchor="middle" class="t" font-size="14" font-weight="600">Relationship Manager · Priscilla Ong</text>
+        <text x="500" y="757" text-anchor="middle" class="ts">reviews, decides, and owns the advice</text>
+        <line class="conn" x1="500" y1="770" x2="500" y2="796" marker-end="url(#arw)"/>
+        <text x="500" y="826" text-anchor="middle" class="ts" style="fill:#7c8aa1">Client advisory conversation</text>
+      </svg>
+      </div>
+      <figcaption><b>Fig 1 — the pipeline.</b> The book descends one path. The six detectors compute
+        every signal and rank the twenty clients; the dashed line is the governance boundary. Only
+        below it does a language model act. Remove the model and the engine still produces the entire
+        triage — the page just loses its narration.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 02 TECH STACK -->
+  <section id="s02">
+    <h2><span class="num">02</span> Technology stack</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Signal engine</td><td>Pure Python standard library</td><td>No third-party runtime dependency — runs anywhere a bank permits Python, trivial to audit, nothing to <span class="path">pip install</span>.</td></tr>
+        <tr><td>Explanation</td><td>Claude (Anthropic API), <span class="path">claude-opus-5</span></td><td>Only for turning computed findings into language; adaptive thinking; keyed, cached, and never on the critical path for the numbers.</td></tr>
+        <tr><td>Workbench</td><td>Streamlit</td><td>Python-native UI over the engine's JSON — fastest path to the three-zone RM interface.</td></tr>
+        <tr><td>Tests</td><td><span class="path">unittest</span> (stdlib)</td><td>16 regression tests pin the flagship behaviours; no external runner needed.</td></tr>
+        <tr><td>Deploy</td><td>Docker · Streamlit Community Cloud</td><td>A container image for a bank-realistic deploy; Community Cloud for a public demo URL.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 03 DATASET -->
+  <section id="s03">
+    <h2><span class="num">03</span> The dataset &amp; ingestion</h2>
+    <div class="prose">
+      <p>Twelve synthetic files describe one RM's book: 20 clients, 24 portfolios and 1,015 positions
+        at <b>five dated snapshots</b> (Dec 2025 → Aug 2026) spanning a Middle East energy shock, a
+        Strait of Hormuz closure, a June technology drawdown and a rate re-pricing. One snapshot tells
+        you what a portfolio <em>is</em>; comparing snapshots tells you what <em>happened</em>.</p>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>File</th><th>Grain</th><th>What it carries</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">holdings</td><td>1,015 rows</td><td>Every position at all five snapshots — the centre of gravity. USD value is authoritative per row.</td></tr>
+        <tr><td class="mono">instruments</td><td>62</td><td>Price history, <span class="path">underlying_reference</span> (look-through), and the <span class="path">sustainability_excluded</span> / <span class="path">concentration_limit_applies</span> flags.</td></tr>
+        <tr><td class="mono">credit_facilities</td><td>5</td><td>Lombard / term loans with per-snapshot LTV and margin-call triggers.</td></tr>
+        <tr><td class="mono">mandates</td><td>48</td><td>Allocation bands, single-position limits, and binding sustainable exclusions.</td></tr>
+        <tr><td class="mono">transactions</td><td>393</td><td>Trades, income (coupons/dividends/distributions), fees, capital calls, facility activity.</td></tr>
+        <tr><td class="mono">planned_cash_needs</td><td>20</td><td>Known and expected future liabilities, with certainty and timing.</td></tr>
+        <tr><td class="mono">event_log</td><td>16</td><td><b>Authoritative</b> 2026 events with the transmission channels that reached portfolios.</td></tr>
+        <tr><td class="mono">rm_notes</td><td>28</td><td>The RM's own notes — subjective, and often in tension with the numbers. Where advice lives.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="prose" style="font-size:.9rem; color:var(--fg-mute);">Also: <span class="path">clients</span>,
+      <span class="path">portfolios</span>, <span class="path">commitments</span>,
+      <span class="path">market_context</span> (23 series × 5 dates, incl. ten FX pairs).</p>
+  </section>
+
+  <!-- 04 ENGINE -->
+  <section id="s04">
+    <h2><span class="num">04</span> The signal engine — six detectors</h2>
+    <div class="prose"><p>Each detector reads the joined Book and a client, and returns zero or more
+      Findings. Every number is computed from the files; the detectors never guess and are honest
+      where the data is ambiguous. The book-wide engine runs all six across the twenty clients and
+      ranks them by <b>Σ severity²</b>, so one genuine emergency outranks a pile of minor drift and
+      the ranking is always explainable.</p></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Detector</th><th>What it computes</th><th>Fires on</th></tr></thead>
+      <tbody>
+        <tr><td>Collateral</td><td>Lombard/term LTV vs the margin-call trigger, traced across all five snapshots.</td><td class="cost"><b>CL-0014</b> at 69.4% vs a 70% call (SEVERE); CL-0002.</td></tr>
+        <tr><td>Concentration</td><td>Single-name exposure across the whole household, <b>looking through</b> structured products and perpetuals to the name; separates managed from custody.</td><td class="cost">CL-0014 Golden Harbour ≈29% (stock + perpetual + accumulator); CL-0013 Helios 22.5%.</td></tr>
+        <tr><td>Mandate</td><td>Allocation-band and single-position breaches, plus binding <b>sustainable-exclusion</b> breaches. Custody accounts excluded.</td><td class="cost">CL-0005 holds excluded energy/palm names in a SUSBAL mandate.</td></tr>
+        <tr><td>Liquidity</td><td>Confirmed near-term needs + uncalled commitments vs what is genuinely sellable — <b>netting pledged collateral</b>, flagging gates and FX mismatch.</td><td class="cost">CL-0014's "free" liquidity halves once the loan is netted; CL-0017's gated sleeve.</td></tr>
+        <tr><td>Income</td><td>Recurring drawdown vs income the portfolio actually pays. Two branches: a real shortfall, or a retiree drawing on impaired long-dated capital.</td><td class="cost">CL-0006 covers only 25% of its draw; <b>CL-0012</b> lives off bonds due 2045 vs a ~2038 horizon.</td></tr>
+        <tr><td>Attribution</td><td>Largest USD moves since baseline, tied to the <b>authoritative</b> <span class="path">event_log</span> by transmission channel.</td><td class="cost">Tech drawdown → "collateralised lending" → CL-0002/CL-0014 collateral.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 05 LOOK-THROUGH -->
+  <section id="s05">
+    <h2><span class="num">05</span> The look-through resolver</h2>
+    <div class="prose">
+      <p>A structured product's asset class tells you what it is <em>called</em>; its
+        <span class="path">underlying_reference</span> tells you what you are <em>exposed to</em>.
+        The resolver maps a holding to the single issuer it really carries risk to, so concentration
+        can be measured the way a risk officer would — counting a stock, its perpetual and an
+        accumulator on it as <em>one</em> bet.</p>
+      <ul>
+        <li><b>Direct</b> — the holding <em>is</em> the name (a stock, that issuer's perpetual, or a single-underlying note) → one exposure.</li>
+        <li><b>Basket</b> — a worst-of / basket note → one exposure per named constituent, flagged so it is not silently merged into the headline single-name number.</li>
+        <li>Diversified funds, sovereigns, deposits and gold → no single-name exposure.</li>
+      </ul>
+      <p>The mapping is an <b>explicit, auditable alias table</b> — every entry can be pointed at the
+        source field that justifies it. That is the governance posture: no free-association about
+        what a note "probably" references.</p>
+    </div>
+    <div class="callout gold"><b>Worked example — CL-0014, Lau Chi Ming.</b> Golden Harbour appears
+      three ways: the stock, a 5.25% perpetual, and a 12-month accumulator. Individually each looks
+      modest; rolled up to the name they are ≈29% of the managed book — and the accumulator sits in
+      "double-up below strike" territory while his Lombard LTV is 0.6 points from a margin call.</div>
+  </section>
+
+  <!-- 06 EXPLANATION -->
+  <section id="s06">
+    <h2><span class="num">06</span> Grounded explanation</h2>
+    <div class="prose">
+      <p>The engine decides <em>what is true</em>. This layer turns a client's Findings into language
+        the RM can use: a situation summary, two to four talking points / actions to consider, and an
+        honest list of what to check. The model is handed <b>only</b> the computed facts, the client's
+        profile and objectives, the RM notes, and the cited event rows — and is instructed to reason
+        strictly from them.</p>
+      <h3>The prompt contract</h3>
+      <ul>
+        <li>Reason only from the supplied facts, findings, notes and events. Never introduce a number, holding or world event that is not in the input.</li>
+        <li>Every claim must be defensible to the client in a meeting — prefer "we should check X" over a confident assertion the data does not support.</li>
+        <li>The RM remains responsible: suggest actions "to consider", never instructions.</li>
+        <li>Return a strict JSON object: <span class="path">situation</span>, <span class="path">talking_points</span>, <span class="path">watch_outs</span>.</li>
+      </ul>
+      <h3>Robustness</h3>
+      <p>Every explanation is <b>cached to disk</b>, keyed by a hash of its exact inputs, so the hero
+        clients can be pre-generated once and the demo runs with <b>no network</b>. If there is no API
+        key or any error, the layer falls back to a deterministic explanation assembled from the
+        Findings themselves — the app always works.</p>
+    </div>
+    <div class="callout">Model: <span class="path">claude-opus-5</span> with adaptive thinking. The key
+      is read from the environment (or Streamlit Secrets) and never committed. A refusal or failure
+      degrades to the deterministic path.</div>
+  </section>
+
+  <!-- 07 WORKBENCH -->
+  <section id="s07">
+    <h2><span class="num">07</span> The RM workbench</h2>
+    <div class="prose">
+      <p>A single Streamlit surface in three zones, matching <em>signal → understanding → decision</em>:</p>
+      <ul>
+        <li><b>Book</b> — the triaged book in the sidebar: who to call first, each with a severity chip and a one-line reason.</li>
+        <li><b>Client</b> — the selected client's grounded explanation, plus a look-through exposure snapshot.</li>
+        <li><b>Signals</b> — every finding with a <b>"Why?"</b> expander showing the exact facts and source rows, and <b>Accept / Edit / Dismiss</b> so the RM stays in control.</li>
+      </ul>
+      <p>It opens on the highest-priority client (Lau Chi Ming) so the first frame already shows what
+        the system does.</p>
+    </div>
+  </section>
+
+  <!-- 08 DATA DECISIONS -->
+  <section id="s08">
+    <h2><span class="num">08</span> Data-handling decisions</h2>
+    <div class="prose"><p>The dataset sets traps; handling them correctly is much of the assessment.</p></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Decision</th><th>Rationale</th><th>What it costs</th></tr></thead>
+      <tbody>
+        <tr><td>Value from <span class="path">market_value_usd</span>, never the base-currency AUM columns</td><td>Avoids reading a HKD→USD conversion as a loss — Lau's book "falls" 206m→26m only on paper.</td><td class="cost">None — it is the correct column.</td></tr>
+        <tr><td>LTV read as <span class="path">drawn / lending_value</span></td><td>Lending value is already advance-rate haircut, per the data dictionary — not raw market value.</td><td class="cost">None.</td></tr>
+        <tr><td>Custody separated from managed</td><td>A client-directed legacy stake is a concentration to discuss, not a mandate breach to correct.</td><td class="cost">More logic per finding.</td></tr>
+        <tr><td>Encumbered collateral netted from "sellable" liquidity</td><td>Pledged assets are a prior claim; a book that looks liquid can be anything but.</td><td class="cost">Requires joining facilities to holdings.</td></tr>
+        <tr><td>Income annualised from observed quarters, with the estimate labelled</td><td>Honest about a run-rate rather than asserting a precise annual figure.</td><td class="cost">A caveat the RM must read.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 09 GOVERNANCE -->
+  <section id="s09">
+    <h2><span class="num">09</span> Trust, governance &amp; compliance</h2>
+    <div class="prose"><p>AI-driven advisory must preserve trust and the central role of the RM. The
+      architecture answers each requirement structurally, not with a disclaimer.</p>
+      <ul>
+        <li><b>Explainability</b> — every insight is computed by a named detector and carries its facts; the "Why?" expander shows them.</li>
+        <li><b>Suitability</b> — findings respect mandate, risk profile and objectives; the model is told to as well.</li>
+        <li><b>Human oversight</b> — the RM accepts, edits or dismisses every insight; nothing is auto-actioned.</li>
+        <li><b>Traceability</b> — each finding lists its source rows as evidence (e.g. <span class="path">credit_facilities.csv:CF-0002</span>).</li>
+        <li><b>Compliance</b> — the model never computes a number or free-associates about the world; explanations are grounded in the authoritative event log.</li>
+        <li><b>Security</b> — no client data leaves the engine; the API key is read from the environment and never committed; the explanation layer sends only synthetic, already-computed facts.</li>
+      </ul></div>
+  </section>
+
+  <!-- 10 TESTING -->
+  <section id="s10">
+    <h2><span class="num">10</span> Testing strategy</h2>
+    <div class="prose"><p>16 standard-library tests pin the behaviour the demo depends on — run with
+      <span class="path">python -m unittest discover -s tests</span>:</p>
+      <ul>
+        <li><b>Loading &amp; FX</b> — book shape (20/24/1,015/62/393) and USD conversion for HKD and EUR.</li>
+        <li><b>Collateral</b> — Lau's margin call is SEVERE and &lt;1pt from the line; a comfortable facility stays quiet.</li>
+        <li><b>Concentration</b> — Golden Harbour rolls up ≥3 instruments and breaches the limit; a custody legacy stake is <em>not</em> a breach.</li>
+        <li><b>Mandate</b> — the sustainable-exclusion breach fires for CL-0005.</li>
+        <li><b>Liquidity</b> — encumbered collateral is netted (free &lt; gross).</li>
+        <li><b>Income</b> — the retiree flags impaired capital (not a false shortfall); a genuine shortfall flags; "Pre-retirement" is not treated as retired.</li>
+        <li><b>Ranking</b> — Lau tops the book; all 20 clients analyse without error.</li>
+      </ul></div>
+  </section>
+
+  <!-- 11 DEPLOYMENT -->
+  <section id="s11">
+    <h2><span class="num">11</span> Deployment &amp; folder structure</h2>
+    <pre class="tree">juliusbaer-wi/
+├── wealth_intelligence/        <span class="c"># the engine — pure standard library</span>
+│   ├── data_model.py           <span class="c"># Phase 0 · joined, currency-aware Book</span>
+│   ├── lookthrough.py          <span class="c"># Phase 0 · positions → single issuer</span>
+│   ├── findings.py             <span class="c"># severity + Finding types</span>
+│   ├── detectors.py            <span class="c"># Phase 1 · six detectors</span>
+│   ├── engine.py               <span class="c"># Phase 1 · run + rank the book</span>
+│   ├── explainer.py            <span class="c"># Phase 2 · grounded NL (Claude)</span>
+│   └── cli.py / __main__.py    <span class="c"># CLI triage</span>
+├── streamlit_app.py            <span class="c"># Phase 3 · RM workbench</span>
+├── scripts/pregenerate.py      <span class="c"># warm the explanation cache</span>
+├── tests/test_engine.py        <span class="c"># 16 unittests</span>
+├── data/                       <span class="c"># 12 synthetic source files</span>
+├── docs/                       <span class="c"># architecture.html · blueprint.html · DATA_DICTIONARY.md</span>
+├── requirements.txt · runtime.txt · Dockerfile
+└── .streamlit/config.toml      <span class="c"># navy/gold theme + secrets bridge</span></pre>
+    <div class="prose">
+      <h3>Run it</h3>
+      <ul>
+        <li><b>Local</b> — <span class="path">pip install -r requirements-app.txt &amp;&amp; streamlit run streamlit_app.py</span></li>
+        <li><b>Docker</b> — <span class="path">docker build -t jb-wi . &amp;&amp; docker run -p 8080:8080 -e ANTHROPIC_API_KEY=… jb-wi</span></li>
+        <li><b>Streamlit Cloud</b> — point it at <span class="path">streamlit_app.py</span>, add <span class="path">ANTHROPIC_API_KEY</span> in Secrets, deploy.</li>
+      </ul>
+      <p>For the demo, warm the cache first: <span class="path">python scripts/pregenerate.py CL-0014 CL-0012 CL-0017</span> — then it runs with no network.</p>
+    </div>
+  </section>
+
+  <!-- 12 ROADMAP -->
+  <section id="s12">
+    <h2><span class="num">12</span> Roadmap</h2>
+    <div class="prose"><ul>
+      <li><b>Scenario toggle</b> — "Middle East de-escalates / worsens", re-pricing exposures from the market series to show forward risk.</li>
+      <li><b>Meeting pack export</b> — a one-page prep sheet per client the RM can take into the room.</li>
+      <li><b>More detectors</b> — currency-mismatch on future liabilities, tax-lot harvesting across a household, KYC-review-due surfacing.</li>
+      <li><b>Right-sizing for scale</b> — the stdlib model holds twenty clients in memory; a real book moves to a columnar store behind the same detector interface.</li>
+    </ul></div>
+  </section>
+
+  <!-- 13 RISKS -->
+  <section id="s13">
+    <h2><span class="num">13</span> Risks, limitations &amp; caveats</h2>
+    <div class="prose"><ul>
+      <li><b>Income is a run-rate estimate.</b> Annualised from the observed quarters of transactions; the detector says so rather than asserting a precise figure.</li>
+      <li><b>Look-through is a curated map.</b> It is auditable but must be maintained as the instrument universe changes; an unrecognised note contributes no single-name exposure rather than a wrong one.</li>
+      <li><b>Private-market valuations lag.</b> Quarterly-reported funds are a quarter behind by design — a feature of the asset class, surfaced honestly.</li>
+      <li><b>The engine finds only what it encodes.</b> The model cannot surface a signal the detectors do not compute — a deliberate trade for auditability over open-ended inference.</li>
+      <li><b>Synthetic data throughout.</b> No real client, instrument or identifier is present; the habit of treating it as real is part of the exercise.</li>
+    </ul></div>
+  </section>
+
+  <footer>
+    <span>Design reference — synthetic data · the RM owns the advice.</span>
+    <span>Julius Baer · Wealth Intelligence · Track #1</span>
+  </footer>
+</div>
