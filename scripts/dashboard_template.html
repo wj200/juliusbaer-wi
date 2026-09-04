@@ -1,0 +1,524 @@
+<title>Wealth Intelligence Command Deck</title>
+<meta name="description" content="A dark mission-control dashboard for a private-bank Relationship Manager — triage the book, read each client's signals, and act.">
+<style>
+  :root{
+    --bg:#05070e; --bg2:#0a1020; --void:#03040a;
+    --glass:rgba(18,26,48,.55); --glass-2:rgba(24,34,60,.62);
+    --edge:rgba(126,158,232,.16); --edge-2:rgba(126,158,232,.28);
+    --ink:#eaeefb; --soft:#9fabca; --mute:#5d6a8c;
+    --cyan:#49d6e6; --blue:#59a6ff; --violet:#8b7cf6; --gold:#dcb466; --teal:#37c2a6; --rose:#e079a0;
+    --sev-severe:#ff5a6a; --sev-high:#ff9f43; --sev-medium:#ffd166; --sev-low:#5aa9ff; --sev-info:#6b7a9c;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif; font-size:15px; line-height:1.5;
+    overflow-x:hidden;
+  }
+  #stars{position:fixed; inset:0; z-index:-2; display:block;}
+  body::before{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(1200px 700px at 82% -10%, rgba(73,214,230,.10), transparent 55%),
+      radial-gradient(1000px 800px at 5% 110%, rgba(139,124,246,.10), transparent 55%),
+      linear-gradient(180deg, rgba(5,7,14,.2), rgba(3,4,10,.75));}
+  h1,h2,h3{font-family:"Sora","IBM Plex Sans",sans-serif; font-weight:600; margin:0;}
+  .mono{font-family:"JetBrains Mono","IBM Plex Mono",monospace;}
+  ::selection{background:rgba(73,214,230,.3);}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:rgba(126,158,232,.2); border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(126,158,232,.35)}
+  button{font-family:inherit; cursor:pointer; color:inherit; border:none; background:none}
+  input{font-family:inherit}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:20px;
+    padding:14px 24px; background:linear-gradient(180deg, rgba(6,9,18,.92), rgba(6,9,18,.66));
+    backdrop-filter:blur(14px); border-bottom:1px solid var(--edge);}
+  .brand{display:flex; align-items:center; gap:12px; min-width:0}
+  .logo{width:34px; height:34px; border-radius:9px; display:grid; place-items:center; flex:none;
+    background:radial-gradient(circle at 30% 25%, #1a2440, #0a1122); border:1px solid var(--edge-2);
+    box-shadow:0 0 22px rgba(73,214,230,.25) inset, 0 0 0 1px rgba(73,214,230,.12);}
+  .logo svg{width:19px;height:19px}
+  .brand .t1{font-family:"Sora"; font-weight:600; letter-spacing:.02em; font-size:.98rem; line-height:1.1}
+  .brand .t2{font-size:.72rem; color:var(--mute); letter-spacing:.14em; text-transform:uppercase}
+  .kpis{margin-left:auto; display:flex; gap:10px; align-items:stretch; flex-wrap:wrap}
+  .kpi{background:var(--glass); border:1px solid var(--edge); border-radius:12px; padding:7px 14px;
+    display:flex; flex-direction:column; min-width:88px; backdrop-filter:blur(8px)}
+  .kpi .v{font-family:"Sora"; font-weight:700; font-size:1.1rem; line-height:1.05}
+  .kpi .l{font-size:.63rem; letter-spacing:.13em; text-transform:uppercase; color:var(--mute); margin-top:2px}
+  .kpi.alert .v{color:var(--sev-high)}
+  .clock{font-family:"JetBrains Mono"; font-size:.72rem; color:var(--cyan); letter-spacing:.1em;
+    border:1px solid var(--edge); border-radius:999px; padding:6px 12px; background:rgba(73,214,230,.06)}
+
+  /* ---- layout ---- */
+  .wrap{display:grid; grid-template-columns:352px minmax(0,1fr); gap:20px; padding:20px 24px 48px; max-width:1600px; margin:0 auto}
+  @media(max-width:940px){ .wrap{grid-template-columns:1fr} }
+  .panel{background:var(--glass); border:1px solid var(--edge); border-radius:var(--r);
+    backdrop-filter:blur(10px); box-shadow:0 30px 60px -40px rgba(0,0,0,.8)}
+
+  /* ---- queue ---- */
+  .queue{position:sticky; top:84px; height:calc(100vh - 108px); display:flex; flex-direction:column; overflow:hidden}
+  @media(max-width:940px){ .queue{position:static; height:auto; max-height:none} }
+  .qhead{padding:16px 16px 12px; border-bottom:1px solid var(--edge)}
+  .qtitle{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+  .qtitle h2{font-size:.82rem; letter-spacing:.16em; text-transform:uppercase; color:var(--soft)}
+  .seg{display:flex; background:var(--void); border:1px solid var(--edge); border-radius:9px; padding:2px}
+  .seg button{font-size:.68rem; padding:4px 9px; border-radius:7px; color:var(--mute); letter-spacing:.06em}
+  .seg button.on{background:linear-gradient(180deg,#1c2440,#141c30); color:var(--cyan); box-shadow:0 0 0 1px var(--edge-2)}
+  .search{width:100%; background:var(--void); border:1px solid var(--edge); color:var(--ink);
+    border-radius:10px; padding:9px 12px; font-size:.85rem; outline:none}
+  .search:focus{border-color:var(--cyan); box-shadow:0 0 0 3px rgba(73,214,230,.12)}
+  .qtools{display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap}
+  .chipf{font-size:.66rem; letter-spacing:.06em; padding:4px 9px; border-radius:999px; border:1px solid var(--edge);
+    color:var(--mute); background:var(--void); text-transform:uppercase; transition:.15s}
+  .chipf.on{color:#fff}
+  .sortbtn{margin-left:auto; font-size:.68rem; color:var(--soft); border:1px solid var(--edge); border-radius:8px; padding:4px 9px}
+  .qlist{overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; flex:1}
+  .qcard{position:relative; text-align:left; width:100%; border-radius:12px; padding:11px 13px 11px 16px;
+    background:var(--glass-2); border:1px solid var(--edge); overflow:hidden; transition:.18s ease;}
+  .qcard:hover{border-color:var(--edge-2); transform:translateY(-1px)}
+  .qcard.sel{border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 10px 30px -14px rgba(73,214,230,.5)}
+  .qcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--sc,#6b7a9c);
+    box-shadow:0 0 14px var(--sg,transparent)}
+  .qrow1{display:flex; align-items:baseline; gap:8px}
+  .qrank{font-family:"JetBrains Mono"; font-size:.72rem; color:var(--mute)}
+  .qname{font-family:"Sora"; font-weight:600; font-size:.92rem; letter-spacing:.01em; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .qaum{font-family:"JetBrains Mono"; font-size:.74rem; color:var(--soft)}
+  .qreason{font-size:.76rem; color:var(--soft); margin-top:5px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .qbadge{position:absolute; top:11px; right:13px; width:8px; height:8px; border-radius:50%; background:var(--sc); box-shadow:0 0 10px var(--sg)}
+
+  /* constellation */
+  #constel{display:none; padding:10px; flex:1; min-height:0}
+  #constel svg{width:100%; height:100%}
+  .starnode{cursor:pointer; transition:.15s}
+  .starnode:hover circle{stroke:#fff}
+
+  /* ---- dossier ---- */
+  .dossier{display:flex; flex-direction:column; gap:18px; min-width:0}
+  .chero{padding:22px 24px; position:relative; overflow:hidden}
+  .chero::after{content:""; position:absolute; right:-40px; top:-40px; width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle, var(--sg,rgba(73,214,230,.25)), transparent 70%); opacity:.5; pointer-events:none}
+  .cname{font-family:"Sora"; font-weight:700; font-size:1.7rem; letter-spacing:-.01em; text-wrap:balance}
+  .ctags{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px}
+  .tag{font-size:.7rem; letter-spacing:.04em; padding:4px 10px; border-radius:999px; border:1px solid var(--edge);
+    color:var(--soft); background:var(--void)}
+  .tag.sev{color:#0a0f1c; font-weight:700; border:none}
+  .cobj{color:var(--soft); font-size:.86rem; margin-top:12px; max-width:70ch}
+  .cstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-top:18px}
+  .stat{background:var(--void); border:1px solid var(--edge); border-radius:12px; padding:11px 13px}
+  .stat .v{font-family:"Sora"; font-weight:700; font-size:1.25rem}
+  .stat .l{font-size:.63rem; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); margin-top:3px}
+
+  .grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px}
+  @media(max-width:720px){ .grid2{grid-template-columns:1fr} }
+  .card{padding:18px 20px}
+  .card h3{font-size:.74rem; letter-spacing:.15em; text-transform:uppercase; color:var(--soft); margin-bottom:14px;
+    display:flex; align-items:center; gap:8px}
+  .card h3 .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+
+  svg .axis{stroke:var(--edge)}
+  svg text{font-family:"JetBrains Mono","IBM Plex Mono",monospace}
+  .legend{display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:12px; font-size:.72rem; color:var(--soft)}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  /* explanation */
+  .expl{padding:20px 22px; border-left:2px solid var(--cyan)}
+  .badge{font-family:"JetBrains Mono"; font-size:.66rem; letter-spacing:.08em; padding:3px 9px; border-radius:999px;
+    border:1px solid var(--edge); color:var(--cyan); background:rgba(73,214,230,.06)}
+  .badge.off{color:var(--mute)}
+  .expl .sit{font-size:1rem; color:var(--ink); margin:12px 0 4px; line-height:1.6}
+  .expl h4{font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin:16px 0 6px; font-weight:600; font-family:"IBM Plex Sans"}
+  .expl ul{margin:0; padding-left:18px; color:var(--soft)} .expl li{margin:5px 0}
+  .expl .watch li{color:var(--mute); font-style:italic}
+
+  /* signals */
+  .sig{border:1px solid var(--edge); border-radius:13px; overflow:hidden; margin-bottom:12px; background:var(--glass-2);
+    transition:.18s}
+  .sig.done{opacity:.5}
+  .sighead{display:flex; align-items:flex-start; gap:12px; padding:14px 16px; cursor:pointer}
+  .sigchip{font-family:"JetBrains Mono"; font-size:.6rem; letter-spacing:.08em; padding:4px 8px; border-radius:6px;
+    color:#0a0f1c; font-weight:700; flex:none; margin-top:1px}
+  .sigmain{flex:1; min-width:0}
+  .sigh{font-family:"Sora"; font-weight:600; font-size:.94rem; line-height:1.35}
+  .sigcat{font-size:.64rem; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin-top:3px}
+  .sigstate{font-size:.68rem; font-family:"JetBrains Mono"; padding:3px 8px; border-radius:6px; flex:none; align-self:center}
+  .sigbody{max-height:0; overflow:hidden; transition:max-height .32s ease}
+  .sigbody.open{max-height:900px}
+  .sigbody .inner{padding:0 16px 16px 16px}
+  .sigdetail{color:var(--soft); font-size:.85rem; line-height:1.55}
+  .facts{margin-top:12px; border:1px solid var(--edge); border-radius:10px; overflow:hidden}
+  .facts .fr{display:flex; gap:12px; padding:7px 12px; border-bottom:1px solid var(--edge); font-size:.75rem}
+  .facts .fr:last-child{border-bottom:none}
+  .facts .fk{font-family:"JetBrains Mono"; color:var(--mute); min-width:190px}
+  .facts .fv{font-family:"JetBrains Mono"; color:var(--cyan); word-break:break-word}
+  .src{font-family:"JetBrains Mono"; font-size:.68rem; color:var(--mute); margin-top:10px}
+  .acts{display:flex; gap:8px; margin-top:14px}
+  .act{font-size:.72rem; letter-spacing:.03em; padding:7px 14px; border-radius:9px; border:1px solid var(--edge);
+    color:var(--soft); transition:.15s}
+  .act:hover{border-color:var(--edge-2); color:var(--ink)}
+  .act.accept:hover{border-color:var(--teal); color:var(--teal); box-shadow:0 0 0 1px var(--teal)}
+  .act.dismiss:hover{border-color:var(--sev-severe); color:var(--sev-severe)}
+  .noteedit{width:100%; margin-top:10px; background:var(--void); border:1px solid var(--edge); color:var(--ink);
+    border-radius:9px; padding:9px 11px; font-size:.8rem; resize:vertical; min-height:56px; display:none}
+
+  .foot{color:var(--mute); font-size:.72rem; text-align:center; padding:26px 0 6px; font-family:"JetBrains Mono"; letter-spacing:.04em}
+
+  /* tooltip */
+  #tip{position:fixed; z-index:60; pointer-events:none; opacity:0; transform:translateY(4px); transition:opacity .12s;
+    background:rgba(8,12,24,.95); border:1px solid var(--edge-2); border-radius:9px; padding:8px 11px; font-size:.74rem;
+    font-family:"JetBrains Mono"; color:var(--ink); box-shadow:0 12px 30px -12px #000; max-width:240px}
+  #tip .th{color:var(--cyan); font-weight:600}
+  .fade{animation:fade .4s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media(prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<canvas id="stars"></canvas>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" fill="#49d6e6"/><ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="#8b7cf6" stroke-width="1.3" transform="rotate(28 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="#59a6ff" stroke-width="1.1" transform="rotate(-32 12 12)" opacity=".7"/></svg></div>
+    <div><div class="t1">Wealth Intelligence</div><div class="t2">Julius Baer · Asia desk</div></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="clock" id="clock"></div>
+</div>
+
+<div class="wrap">
+  <!-- QUEUE -->
+  <section class="panel queue">
+    <div class="qhead">
+      <div class="qtitle">
+        <h2>Call queue</h2>
+        <div class="seg"><button id="vQueue" class="on">Queue</button><button id="vConstel">Constellation</button></div>
+      </div>
+      <input id="search" class="search" placeholder="Search client…  ( / )" autocomplete="off">
+      <div class="qtools" id="sevFilters"></div>
+    </div>
+    <div class="qlist" id="qlist"></div>
+    <div id="constel"></div>
+  </section>
+
+  <!-- DOSSIER -->
+  <section class="dossier" id="dossier"></section>
+</div>
+
+<div class="foot">Synthetic data · insights are deterministic &amp; auditable · the RM owns the advice — SingHacks 2026 · Julius Baer</div>
+<div id="tip"></div>
+
+<script id="wi-data" type="application/json">/*__WI_DATA__*/null</script>
+<script>
+const DATA = JSON.parse(document.getElementById('wi-data').textContent);
+const SEV = {
+  Severe:{c:'#ff5a6a'}, High:{c:'#ff9f43'}, Medium:{c:'#ffd166'}, Low:{c:'#5aa9ff'}, Info:{c:'#6b7a9c'}
+};
+const SEV_ORDER = ['Severe','High','Medium','Low','Info'];
+const ALLOC_HUES = ['#49d6e6','#8b7cf6','#dcb466','#37c2a6','#59a6ff','#e079a0','#7f8cae'];
+const $ = s => document.querySelector(s);
+const rgba = (hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+function usd(n){n=+n||0;const a=Math.abs(n);const s=n<0?'-':'';
+  if(a>=1e9)return s+'$'+(a/1e9).toFixed(2)+'B'; if(a>=1e6)return s+'$'+(a/1e6).toFixed(2)+'M';
+  if(a>=1e3)return s+'$'+(a/1e3).toFixed(0)+'K'; return s+'$'+a.toFixed(0)}
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* state */
+const KEY='wi_decisions_v1';
+let decisions = {}; try{decisions=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+const state = { sel:DATA.clients[0].id, view:'queue', sort:'priority',
+  query:'', sevOff:new Set(), openSig:new Set() };
+const byId = Object.fromEntries(DATA.clients.map(c=>[c.id,c]));
+
+/* ---------- top KPIs ---------- */
+(function(){
+  const b=DATA.book, sc=b.severity_counts||{};
+  const alert=(sc.Severe||0)+(sc.High||0);
+  $('#kpis').innerHTML = [
+    ['AUM', usd(b.total_aum_usd)],
+    ['Clients', b.n_clients],
+    ['Positions', b.n_positions],
+    ['Priority calls', alert, true],
+    ['Prep', '<span id="prepCount">0</span>']
+  ].map(([l,v,a])=>`<div class="kpi${a?' alert':''}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+  $('#clock').textContent = 'AS OF · '+DATA.as_of;
+})();
+
+/* ---------- severity filters ---------- */
+$('#sevFilters').innerHTML = SEV_ORDER.map(s=>
+  `<button class="chipf on" data-sev="${s}" style="--c:${SEV[s].c}">${s}</button>`).join('')
+  + `<button class="sortbtn" id="sortBtn">Sort: Priority</button>`;
+document.querySelectorAll('.chipf').forEach(b=>{
+  const s=b.dataset.sev; const paint=()=>{ b.style.background=state.sevOff.has(s)?'var(--void)':rgba(SEV[s].c,.16);
+    b.style.borderColor=state.sevOff.has(s)?'var(--edge)':SEV[s].c; b.style.color=state.sevOff.has(s)?'var(--mute)':'#fff'; };
+  paint();
+  b.onclick=()=>{ state.sevOff.has(s)?state.sevOff.delete(s):state.sevOff.add(s); paint(); renderQueue(); };
+});
+$('#sortBtn').onclick=()=>{ const o=['priority','aum','name']; state.sort=o[(o.indexOf(state.sort)+1)%3];
+  $('#sortBtn').textContent='Sort: '+state.sort[0].toUpperCase()+state.sort.slice(1); renderQueue(); };
+$('#search').addEventListener('input',e=>{state.query=e.target.value.toLowerCase(); renderQueue();});
+
+/* view toggle */
+$('#vQueue').onclick=()=>setView('queue'); $('#vConstel').onclick=()=>setView('constel');
+function setView(v){ state.view=v;
+  $('#vQueue').classList.toggle('on',v==='queue'); $('#vConstel').classList.toggle('on',v==='constel');
+  $('#qlist').style.display=v==='queue'?'flex':'none'; $('#constel').style.display=v==='constel'?'block':'none';
+  if(v==='constel') renderConstellation();
+}
+
+/* ---------- queue ---------- */
+function filtered(){
+  let list=DATA.clients.filter(c=>!state.sevOff.has(c.top_severity)
+    && (!state.query || c.name.toLowerCase().includes(state.query) || c.id.toLowerCase().includes(state.query)));
+  if(state.sort==='aum') list=[...list].sort((a,b)=>b.total_usd-a.total_usd);
+  else if(state.sort==='name') list=[...list].sort((a,b)=>a.name.localeCompare(b.name));
+  else list=[...list].sort((a,b)=>a.rank-b.rank);
+  return list;
+}
+function renderQueue(){
+  const list=filtered();
+  $('#qlist').innerHTML = list.map(c=>{
+    const sc=SEV[c.top_severity].c;
+    return `<button class="qcard${c.id===state.sel?' sel':''}" data-id="${c.id}"
+        style="--sc:${sc};--sg:${rgba(sc,.6)}">
+        <div class="qrow1"><span class="qrank mono">#${c.rank}</span>
+          <span class="qname">${esc(c.name)}</span><span class="qaum mono">${usd(c.total_usd)}</span></div>
+        <div class="qreason">${esc(c.lead)}</div></button>`;
+  }).join('') || `<div style="color:var(--mute);padding:24px;text-align:center;font-size:.85rem">No clients match.</div>`;
+  document.querySelectorAll('.qcard').forEach(el=>el.onclick=()=>select(el.dataset.id));
+}
+
+/* ---------- constellation ---------- */
+function renderConstellation(){
+  const W=340,H=$('#constel').clientHeight||520, pad=42;
+  const cs=DATA.clients, maxA=Math.max(...cs.map(c=>c.total_usd));
+  const x=v=>pad+(v/10)*(W-2*pad);                 // risk score 0..10
+  const y=v=>H-pad-(Math.log(v)/Math.log(maxA))*(H-2*pad);
+  const nodes=cs.map(c=>{const sc=SEV[c.top_severity].c; const r=6+18*Math.sqrt(c.total_usd/maxA);
+    return `<g class="starnode" data-id="${c.id}" transform="translate(${x(c.risk_score||5).toFixed(1)},${y(c.total_usd).toFixed(1)})">
+      <circle r="${(r+6).toFixed(1)}" fill="${rgba(sc,.10)}"/>
+      <circle r="${r.toFixed(1)}" fill="${rgba(sc,.9)}" stroke="${state.sel===c.id?'#fff':rgba(sc,.4)}" stroke-width="${state.sel===c.id?2:1}"/>
+    </g>`}).join('');
+  $('#constel').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Book constellation: clients plotted by risk score and AUM, sized by AUM, coloured by top severity.">
+    <line class="axis" x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}"/>
+    <line class="axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}"/>
+    <text x="${W-pad}" y="${H-pad+22}" text-anchor="end" fill="#5d6a8c" font-size="10">risk appetite →</text>
+    <text x="${pad-6}" y="${pad-8}" fill="#5d6a8c" font-size="10">AUM ↑</text>
+    ${nodes}</svg>`;
+  document.querySelectorAll('.starnode').forEach(g=>{
+    const c=byId[g.dataset.id];
+    g.onclick=()=>select(c.id);
+    g.onmousemove=e=>tip(e,`<div class="th">${esc(c.name)}</div>${usd(c.total_usd)} · ${c.top_severity} · risk ${c.risk_score}/10`);
+    g.onmouseleave=hideTip;
+  });
+}
+
+/* ---------- charts ---------- */
+function chartValue(series){
+  const W=430,H=150,pad=28, xs=series.map((_,i)=>i), max=Math.max(...series.map(s=>s.usd)), min=Math.min(...series.map(s=>s.usd));
+  const rng=(max-min)||1;
+  const X=i=>pad+ i/(series.length-1)*(W-pad-14);
+  const Y=v=>H-24-((v-min)/rng)*(H-46);
+  const pts=series.map((s,i)=>[X(i),Y(s.usd)]);
+  const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area=line+` L${pts.at(-1)[0].toFixed(1)} ${H-24} L${pts[0][0].toFixed(1)} ${H-24} Z`;
+  const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i===pts.length-1?4:2.5}" fill="${i===pts.length-1?'#49d6e6':'#59a6ff'}" data-i="${i}"/>`).join('');
+  const labels=series.map((s,i)=>`<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="#5d6a8c" font-size="9">${s.date.slice(2)}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="cV" role="img" aria-label="Portfolio value across five snapshots">
+    <defs><linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#49d6e6" stop-opacity=".35"/><stop offset="1" stop-color="#49d6e6" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#gv)"/><path d="${line}" fill="none" stroke="#49d6e6" stroke-width="2"/>
+    ${dots}${labels}
+    <line class="cross" x1="0" y1="0" x2="0" y2="${H-22}" stroke="#49d6e6" stroke-width="1" opacity="0"/></svg>`;
+}
+function wireValue(el,series){
+  const svg=el.querySelector('.cV'); const W=430;const pad=28;
+  const X=i=>pad+i/(series.length-1)*(W-pad-14);
+  svg.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect(); const rx=(e.clientX-r.left)/r.width*W;
+    let i=Math.round((rx-pad)/((W-pad-14)/(series.length-1))); i=Math.max(0,Math.min(series.length-1,i));
+    const s=series[i]; const prev=i?series[i-1].usd:s.usd; const chg=((s.usd-prev)/(prev||1)*100);
+    const cl=svg.querySelector('.cross'); cl.setAttribute('x1',X(i)); cl.setAttribute('x2',X(i)); cl.setAttribute('opacity','.5');
+    tip(e,`<div class="th">${s.date}</div>${usd(s.usd)}${i?` · ${chg>=0?'+':''}${chg.toFixed(1)}%`:''}`);
+  });
+  svg.addEventListener('mouseleave',()=>{hideTip(); svg.querySelector('.cross').setAttribute('opacity','0')});
+}
+function chartGauge(f){
+  const W=430,H=158,cx=W/2,cy=140,R=104;
+  const val=f.now, mc=f.margin_call, vmax=Math.max(100, mc+10);
+  // v -> angle across the upper semicircle (180° at left, 0° at right)
+  const rad=v=>Math.PI*(1 - v/vmax);
+  const pt=(v,r)=>[cx+r*Math.cos(rad(v)), cy-r*Math.sin(rad(v))];
+  // colored track sampled as short segments (robust, no arc-flag ambiguity)
+  const band=v=> v<mc*.72?'#37c2a6' : v<mc*.9?'#ffd166' : '#ff5a6a';
+  let segs='', N=64;
+  for(let i=0;i<N;i++){const v0=vmax*i/N, v1=vmax*(i+1)/N; const [x0,y0]=pt(v0,R),[x1,y1]=pt(v1,R);
+    segs+=`<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${band((v0+v1)/2)}" stroke-width="10" stroke-linecap="round" opacity=".9"/>`;}
+  const [mx,my]=pt(mc,R+9),[mx2,my2]=pt(mc,R-15);
+  const [nx,ny]=pt(val,R-20);
+  const near=(mc-val)<=2; const col=near?'#ff5a6a':val>mc*.9?'#ff9f43':'#37c2a6';
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Loan to value gauge: ${val}% versus a ${mc}% margin call">
+    ${segs}
+    <line x1="${mx.toFixed(1)}" y1="${my.toFixed(1)}" x2="${mx2.toFixed(1)}" y2="${my2.toFixed(1)}" stroke="#ff5a6a" stroke-width="2.5"/>
+    <text x="${mx.toFixed(1)}" y="${(my-6).toFixed(1)}" text-anchor="middle" fill="#ff5a6a" font-size="9.5">call ${mc}%</text>
+    <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="${col}" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="6" fill="${col}"/><circle cx="${cx}" cy="${cy}" r="11" fill="none" stroke="${col}" stroke-width="1" opacity=".4"/>
+    <text x="${cx}" y="${(cy-42).toFixed(1)}" text-anchor="middle" fill="${col}" font-size="32" font-weight="700" font-family="Sora">${val.toFixed(1)}%</text>
+    <text x="${cx}" y="${(cy-24).toFixed(1)}" text-anchor="middle" fill="#9fabca" font-size="10">${esc(f.facility)}${f.distance!=null?' · '+f.distance+'pt to call':''}</text>
+  </svg>`;
+}
+function chartExposure(ex){
+  if(!ex.rows.length) return '<div style="color:var(--mute);font-size:.82rem;padding:20px 0">Diversified — no single-name concentration.</div>';
+  const W=430, rowH=30, H=ex.rows.length*rowH+24, pad=118, maxPct=Math.max(ex.limit?ex.limit*1.2:15, ...ex.rows.map(r=>r.pct));
+  const X=p=>pad+p/maxPct*(W-pad-40);
+  let out=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Single-name look-through exposure">`;
+  if(ex.limit){const lx=X(ex.limit); out+=`<line x1="${lx.toFixed(1)}" y1="8" x2="${lx.toFixed(1)}" y2="${H-14}" stroke="#ff9f43" stroke-width="1" stroke-dasharray="4 3"/><text x="${lx.toFixed(1)}" y="6" text-anchor="middle" fill="#ff9f43" font-size="8.5">limit ${ex.limit}%</text>`;}
+  ex.rows.forEach((r,i)=>{const y=18+i*rowH; const col=r.over_limit?'#ff5a6a':r.custody_only?'#6b7a9c':'#49d6e6';
+    out+=`<text x="${pad-8}" y="${y+11}" text-anchor="end" fill="#9fabca" font-size="10">${esc(r.issuer.length>16?r.issuer.slice(0,15)+'…':r.issuer)}</text>
+      <rect x="${pad}" y="${y}" width="${(X(r.pct)-pad).toFixed(1)}" height="15" rx="4" fill="${col}" data-i="${i}" class="ebar"/>
+      <text x="${(X(r.pct)+6).toFixed(1)}" y="${y+11}" fill="#eaeefb" font-size="10">${r.pct}%</text>`;});
+  return out+'</svg>';
+}
+function wireExposure(el,ex){ el.querySelectorAll('.ebar').forEach(b=>{const r=ex.rows[+b.dataset.i];
+  b.style.cursor='pointer';
+  b.onmousemove=e=>tip(e,`<div class="th">${esc(r.issuer)}</div>${r.pct}% · ${usd(r.usd)}${r.over_limit?' · over limit':r.custody_only?' · custody':''}`);
+  b.onmouseleave=hideTip;});}
+function chartDonut(alloc){
+  const W=210,H=150,cx=76,cy=75,R=54,r=32; let a=-Math.PI/2, out=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Asset allocation">`;
+  alloc.forEach((s,i)=>{const frac=s.pct/100, a2=a+frac*2*Math.PI, big=frac>.5?1:0;
+    const x0=cx+R*Math.cos(a),y0=cy+R*Math.sin(a),x1=cx+R*Math.cos(a2),y1=cy+R*Math.sin(a2);
+    const xi=cx+r*Math.cos(a2),yi=cy+r*Math.sin(a2),xi0=cx+r*Math.cos(a);
+    out+=`<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${big} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L${xi.toFixed(1)} ${yi.toFixed(1)} A${r} ${r} 0 ${big} 0 ${xi0.toFixed(1)} ${(cy+r*Math.sin(a)).toFixed(1)} Z" fill="${ALLOC_HUES[i%7]}" stroke="#0a1020" stroke-width="1.5" class="dseg" data-i="${i}"/>`; a=a2;});
+  out+=`<text x="${cx}" y="${cy-3}" text-anchor="middle" fill="#eaeefb" font-size="15" font-weight="700" font-family="Sora">${alloc.length}</text><text x="${cx}" y="${cy+11}" text-anchor="middle" fill="#5d6a8c" font-size="8">classes</text></svg>`;
+  const leg=`<div class="legend">`+alloc.slice(0,6).map((s,i)=>`<span><i style="background:${ALLOC_HUES[i%7]}"></i>${esc(s.label)} ${s.pct}%</span>`).join('')+`</div>`;
+  return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${out}<div style="flex:1;min-width:120px">${leg}</div></div>`;
+}
+function wireDonut(el,alloc){el.querySelectorAll('.dseg').forEach(p=>{const s=alloc[+p.dataset.i];
+  p.style.cursor='pointer'; p.onmousemove=e=>tip(e,`<div class="th">${esc(s.label)}</div>${s.pct}% · ${usd(s.usd)}`); p.onmouseleave=hideTip;});}
+
+/* ---------- dossier ---------- */
+function select(id){ state.sel=id; renderQueue(); if(state.view==='constel')renderConstellation(); renderDossier();
+  document.querySelector('.dossier').scrollIntoView({behavior:'smooth',block:'start'}); }
+function renderDossier(){
+  const c=byId[state.sel]; const sc=SEV[c.top_severity].c;
+  const ltv=c.charts.ltv[0];
+  const secondChart = ltv ? {h:'Collateral · loan-to-value', svg:chartGauge(ltv)} : {h:'Asset allocation', svg:chartDonut(c.charts.allocation)};
+  const e=c.explanation;
+  const d=$('#dossier'); d.className='dossier fade';
+  d.innerHTML = `
+    <div class="panel chero" style="--sg:${rgba(sc,.28)}">
+      <div class="cname">${esc(c.name)}</div>
+      <div class="ctags">
+        <span class="tag sev" style="background:${sc}">${c.top_severity}</span>
+        <span class="tag">${esc(c.id)}</span><span class="tag">${esc(c.life_stage)}</span>
+        <span class="tag">${esc(c.risk_profile)} · risk ${c.risk_score}/10</span>
+        <span class="tag">${esc(c.booking_centre)}</span><span class="tag">liquidity ${esc(c.liquidity_needs)}</span>
+      </div>
+      <div class="cobj">${esc(c.objectives)}</div>
+      <div class="cstats">
+        <div class="stat"><div class="v">${usd(c.total_usd)}</div><div class="l">Managed AUM</div></div>
+        <div class="stat"><div class="v" style="color:${sc}">${c.findings.length}</div><div class="l">Signals</div></div>
+        <div class="stat"><div class="v">${c.score}</div><div class="l">Priority score</div></div>
+        <div class="stat"><div class="v">#${c.rank}</div><div class="l">Call rank</div></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel card"><h3><span class="dot"></span>Portfolio value · 5 snapshots</h3><div id="cValue"></div></div>
+      <div class="panel card"><h3><span class="dot"></span>${secondChart.h}</h3><div id="cSecond">${secondChart.svg}</div></div>
+    </div>
+
+    <div class="panel card"><h3><span class="dot"></span>Single-name exposure · look-through</h3><div id="cExp">${chartExposure(c.charts.exposure)}</div></div>
+
+    <div class="panel expl">
+      <span class="badge ${e.grounded_by_model?'':'off'}">${e.grounded_by_model?'◇ grounded by Claude':'○ offline · deterministic'}</span>
+      <div class="sit">${esc(e.situation)}</div>
+      ${e.talking_points&&e.talking_points.length?`<h4>Talking points / actions to consider</h4><ul>${e.talking_points.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+      ${e.watch_outs&&e.watch_outs.length?`<h4>Watch-outs &amp; things to verify</h4><ul class="watch">${e.watch_outs.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+    </div>
+
+    <div class="panel card"><h3><span class="dot"></span>Signals — ${c.findings.length}</h3><div id="sigs"></div></div>`;
+
+  $('#cValue').innerHTML = chartValue(c.charts.value_series); wireValue($('#cValue'),c.charts.value_series);
+  if(ltv===undefined) wireDonut($('#cSecond'),c.charts.allocation);
+  wireExposure($('#cExp'),c.charts.exposure);
+  renderSignals(c);
+}
+function renderSignals(c){
+  $('#sigs').innerHTML = c.findings.map((f,idx)=>{
+    const key=c.id+'::'+idx, dec=decisions[key]||{}, sc=SEV[f.severity].c, open=state.openSig.has(key);
+    const stateChip = dec.status?`<span class="sigstate" style="background:${dec.status==='accepted'?rgba('#37c2a6',.18):dec.status==='dismissed'?rgba('#ff5a6a',.16):rgba('#ffd166',.16)};color:${dec.status==='accepted'?'#37c2a6':dec.status==='dismissed'?'#ff5a6a':'#ffd166'}">${dec.status==='accepted'?'✓ accepted':dec.status==='dismissed'?'✕ dismissed':'✎ edited'}</span>`:'';
+    const facts=Object.entries(f.facts||{}).map(([k,v])=>`<div class="fr"><span class="fk">${esc(k)}</span><span class="fv">${esc(Array.isArray(v)?v.join(', '):(typeof v==='object'?JSON.stringify(v):v))}</span></div>`).join('');
+    return `<div class="sig${dec.status==='dismissed'?' done':''}" data-key="${key}">
+      <div class="sighead" data-toggle="${key}">
+        <span class="sigchip" style="background:${sc}">${f.severity.toUpperCase()}</span>
+        <div class="sigmain"><div class="sigh">${esc(f.headline)}</div><div class="sigcat">${esc(f.category)}</div></div>
+        ${stateChip}
+      </div>
+      <div class="sigbody${open?' open':''}"><div class="inner">
+        <div class="sigdetail">${esc(f.detail)}</div>
+        ${facts?`<div class="facts">${facts}</div>`:''}
+        ${f.evidence&&f.evidence.length?`<div class="src">source · ${esc(f.evidence.join('  ·  '))}</div>`:''}
+        <div class="acts">
+          <button class="act accept" data-act="accepted" data-key="${key}">Accept</button>
+          <button class="act" data-act="edited" data-key="${key}">Edit note</button>
+          <button class="act dismiss" data-act="dismissed" data-key="${key}">Dismiss</button>
+        </div>
+        <textarea class="noteedit" data-note="${key}" placeholder="Note for the client file…" style="display:${dec.status==='edited'?'block':'none'}">${esc(dec.note||'')}</textarea>
+      </div></div></div>`;
+  }).join('') || '<div style="color:var(--mute)">No material signals this cycle.</div>';
+
+  $('#sigs').querySelectorAll('.sighead').forEach(h=>h.onclick=()=>{
+    const k=h.dataset.toggle, body=h.nextElementSibling;
+    state.openSig.has(k)?state.openSig.delete(k):state.openSig.add(k); body.classList.toggle('open');
+  });
+  $('#sigs').querySelectorAll('.act').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const k=b.dataset.key; decisions[k]={status:b.dataset.act, note:(decisions[k]||{}).note||''};
+    save(); renderSignals(c); updatePrep();
+    if(b.dataset.act==='edited'){const t=$('#sigs').querySelector(`[data-note="${k}"]`); if(t){t.style.display='block'; t.focus();}}
+  });
+  $('#sigs').querySelectorAll('.noteedit').forEach(t=>t.oninput=()=>{const k=t.dataset.note;
+    decisions[k]={status:'edited', note:t.value}; save();});
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(decisions))}catch(e){}}
+function updatePrep(){const n=Object.values(decisions).filter(d=>d.status==='accepted'||d.status==='edited').length;
+  const el=$('#prepCount'); if(el)el.textContent=n;}
+
+/* ---------- tooltip ---------- */
+const TIP=$('#tip');
+function tip(e,html){TIP.innerHTML=html; TIP.style.opacity='1';
+  let x=e.clientX+14,y=e.clientY+14; if(x>innerWidth-250)x=e.clientX-234; TIP.style.left=x+'px'; TIP.style.top=y+'px';}
+function hideTip(){TIP.style.opacity='0';}
+
+/* ---------- keyboard ---------- */
+addEventListener('keydown',e=>{
+  if(e.key==='/'&&document.activeElement!==$('#search')){e.preventDefault();$('#search').focus();return;}
+  if(e.target===$('#search'))return;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();
+    const list=filtered(); const i=list.findIndex(c=>c.id===state.sel);
+    const ni=Math.max(0,Math.min(list.length-1,i+(e.key==='ArrowDown'?1:-1))); if(list[ni])select(list[ni].id);}
+});
+
+/* ---------- starfield ---------- */
+(function(){
+  const cv=$('#stars'),ctx=cv.getContext('2d'); let w,h,stars,af;
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  function rs(){w=cv.width=innerWidth; h=cv.height=innerHeight;
+    stars=Array.from({length:Math.min(220,Math.floor(w*h/9000))},()=>({
+      x:Math.random()*w,y:Math.random()*h,z:Math.random()*.8+.2,
+      r:Math.random()*1.3+.2, tw:Math.random()*Math.PI*2, c:Math.random()<.15?'#8b7cf6':Math.random()<.2?'#49d6e6':'#cfe0ff'}));}
+  function draw(t){ctx.clearRect(0,0,w,h);
+    for(const s of stars){const a=(.4+.6*Math.abs(Math.sin(s.tw+t/900)))*s.z;
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fillStyle=s.c;ctx.globalAlpha=a;ctx.fill();
+      if(!reduce){s.y+=s.z*.05; if(s.y>h)s.y=0;}}
+    ctx.globalAlpha=1; af=requestAnimationFrame(draw);}
+  rs(); addEventListener('resize',rs);
+  if(reduce){draw(0);cancelAnimationFrame(af);} else draw(0);
+})();
+
+/* boot */
+setView('queue'); renderQueue(); renderDossier(); updatePrep();
+</script>

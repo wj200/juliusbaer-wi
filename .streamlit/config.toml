@@ -1,10 +1,10 @@
-# Workbench theme — restrained private-bank navy + gold.
+# Command-deck shell — dark, to match the embedded dashboard.
 [theme]
-base = "light"
-primaryColor = "#b3944d"
-backgroundColor = "#f6f4ef"
-secondaryBackgroundColor = "#ffffff"
-textColor = "#1d2733"
+base = "dark"
+primaryColor = "#49d6e6"
+backgroundColor = "#05070e"
+secondaryBackgroundColor = "#0a1020"
+textColor = "#eaeefb"
 font = "sans serif"
 
 [server]
