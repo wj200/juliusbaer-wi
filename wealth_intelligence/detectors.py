@@ -661,3 +661,8 @@ ALL_DETECTORS = [
     detect_income_suitability,
     detect_attribution,
 ]
+
+# Additional detectors live in their own module; append them to the registry.
+from . import detectors_extra as _extra  # noqa: E402
+
+ALL_DETECTORS += [_extra.detect_currency_mismatch, _extra.detect_review_due]

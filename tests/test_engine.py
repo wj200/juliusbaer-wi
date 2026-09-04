@@ -149,6 +149,34 @@ class LiquidityTests(unittest.TestCase):
         self.assertLess(facts["liquid_free_usd"], facts["liquid_gross_usd"])
 
 
+class ExtraDetectorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.book = load_book()
+
+    def test_currency_mismatch_fires_somewhere(self):
+        from wealth_intelligence.detectors_extra import detect_currency_mismatch
+        hits = [f for cid in cls_ids(self.book) for f in detect_currency_mismatch(self.book, cid)]
+        self.assertTrue(hits, "expected at least one currency-mismatch finding")
+        self.assertTrue(all(f.facts["mismatched_obligations_usd"] > 0 for f in hits))
+
+    def test_review_due_severity_scales(self):
+        from wealth_intelligence.detectors_extra import detect_review_due
+        # CL-0011's review is 5 days out -> Medium; CL-0019 is ~86 days -> Low.
+        f11 = detect_review_due(self.book, "CL-0011")
+        f19 = detect_review_due(self.book, "CL-0019")
+        self.assertTrue(f11 and f11[0].severity == Severity.MEDIUM)
+        self.assertTrue(f19 and f19[0].severity == Severity.LOW)
+
+    def test_registry_has_eight(self):
+        from wealth_intelligence.detectors import ALL_DETECTORS
+        self.assertEqual(len(ALL_DETECTORS), 8)
+
+
+def cls_ids(book):
+    return book.client_ids()
+
+
 class RankingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
