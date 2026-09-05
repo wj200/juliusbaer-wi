@@ -24,6 +24,7 @@ from wealth_intelligence.detectors import _tightest_single_limit
 from wealth_intelligence.engine import analyse_book
 from wealth_intelligence.explainer import explain
 from wealth_intelligence.lookthrough import resolve
+from wealth_intelligence.scenarios import apply as scenario_apply
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -121,6 +122,10 @@ def build_payload(book) -> dict:
                 "allocation": _allocation(book, d.client_id),
                 "exposure": _exposure(book, d.client_id),
                 "ltv": _ltv(book, d.client_id),
+                "scenario": {
+                    "escalate": scenario_apply(book, d.client_id, "escalate"),
+                    "deescalate": scenario_apply(book, d.client_id, "deescalate"),
+                },
             },
         })
     return {

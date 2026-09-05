@@ -177,6 +177,23 @@ def cls_ids(book):
     return book.client_ids()
 
 
+class ScenarioTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.book = load_book()
+
+    def test_escalation_pushes_lau_into_margin_call(self):
+        from wealth_intelligence.scenarios import apply
+        e = apply(self.book, "CL-0014", "escalate")
+        self.assertTrue(e["ltv"] and e["ltv"][0]["breach"], "Lau should breach under escalation")
+        self.assertLess(e["value_delta_pct"], 0)  # book falls
+
+    def test_deescalation_is_the_mirror_direction(self):
+        from wealth_intelligence.scenarios import apply
+        d = apply(self.book, "CL-0014", "deescalate")
+        self.assertGreater(d["value_delta_pct"], 0)  # HK property recovers → book up
+
+
 class RankingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
