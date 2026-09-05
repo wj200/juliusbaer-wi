@@ -1,0 +1,13 @@
+# Never bake secrets, caches, or build cruft into the image.
+.env
+.env.*
+.wi_cache/
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+docs/
+tests/
+*.md
