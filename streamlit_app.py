@@ -13,6 +13,7 @@ serves it, so the Docker / Cloud deploy is unchanged.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 
@@ -49,10 +50,33 @@ st.markdown(
 )
 
 
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+_SOURCES = [
+    "scripts/dashboard_template.html", "scripts/export_web.py",
+    "wealth_intelligence/data_model.py", "wealth_intelligence/detectors.py",
+    "wealth_intelligence/detectors_extra.py", "wealth_intelligence/scenarios.py",
+    "wealth_intelligence/lookthrough.py", "wealth_intelligence/explainer.py",
+]
+
+
+def _code_version() -> str:
+    """A fingerprint of the source files, so the cache rebuilds when they change
+    (a bare @st.cache_data would otherwise serve a stale page after an edit —
+    e.g. keeping the old UI without the scenario toggle until the server is
+    restarted)."""
+    h = hashlib.sha256()
+    for rel in _SOURCES:
+        try:
+            h.update(f"{rel}:{os.path.getmtime(os.path.join(_ROOT, rel)):.0f}".encode())
+        except OSError:
+            pass
+    return h.hexdigest()[:12]
+
+
 @st.cache_data(show_spinner="Analysing the book…")
-def _dashboard_html() -> str:
+def _dashboard_html(version: str) -> str:
     book = load_book()
     return render_html(build_payload(book))
 
 
-components.html(_dashboard_html(), height=1600, scrolling=True)
+components.html(_dashboard_html(_code_version()), height=1600, scrolling=True)
