@@ -1,5 +1,5 @@
 <title>Wealth Intelligence Technical Blueprint</title>
-<meta name="description" content="Full technical blueprint for the Julius Baer wealth-intelligence layer — architecture, the six-detector engine, grounded explanation, governance, testing and deployment.">
+<meta name="description" content="Full technical blueprint for the Julius Baer wealth-intelligence layer — architecture, the eight-detector engine, grounded explanation, governance, testing and deployment.">
 <style>
   :root{
     --ink:#0c131f; --panel:#121d2c; --panel-2:#0f1826; --line:#26364a;
@@ -107,8 +107,8 @@
       <span><b>Repository</b> — wj200/juliusbaer-wi</span>
       <span><b>Interface</b> — Streamlit RM workbench</span>
       <span><b>Engine</b> — pure standard-library Python</span>
-      <span><b>Signals</b> — 6 detectors · Σ severity² triage</span>
-      <span><b>Tests</b> — 16 passing</span>
+      <span><b>Signals</b> — 8 detectors · Σ severity² triage</span>
+      <span><b>Tests</b> — 21 passing</span>
       <span><b>Data</b> — synthetic · 20 clients · 5 snapshots</span>
     </div>
     <div class="stack">
@@ -116,7 +116,7 @@
       <span class="chip"><b>Streamlit</b> · workbench</span>
       <span class="chip"><b>Claude API</b> · Opus · explanation only</span>
       <span class="chip"><b>Docker</b> · container deploy</span>
-      <span class="chip"><b>unittest</b> · 16 tests</span>
+      <span class="chip"><b>unittest</b> · 21 tests</span>
       <span class="chip"><b>event_log.csv</b> · authoritative events</span>
     </div>
   </header>
@@ -128,7 +128,7 @@
       <a href="#s01"><span class="n">01</span> Executive summary &amp; architecture</a>
       <a href="#s02"><span class="n">02</span> Technology stack</a>
       <a href="#s03"><span class="n">03</span> The dataset &amp; ingestion</a>
-      <a href="#s04"><span class="n">04</span> The signal engine — six detectors</a>
+      <a href="#s04"><span class="n">04</span> The signal engine — eight detectors</a>
       <a href="#s05"><span class="n">05</span> The look-through resolver</a>
       <a href="#s06"><span class="n">06</span> Grounded explanation</a>
       <a href="#s07"><span class="n">07</span> The RM workbench</a>
@@ -138,11 +138,17 @@
       <a href="#s11"><span class="n">11</span> Deployment &amp; folder structure</a>
       <a href="#s12"><span class="n">12</span> Roadmap</a>
       <a href="#s13"><span class="n">13</span> Risks, limitations &amp; caveats</a>
+      <a href="#s14"><span class="n">14</span> The scenario engine</a>
+      <a href="#s15"><span class="n">15</span> Data model &amp; joins</a>
+      <a href="#s16"><span class="n">16</span> Security, operations &amp; error handling</a>
+      <a href="#s17"><span class="n">17</span> The explainer contract</a>
     </div>
     <p class="prose" style="margin-top:14px; color:var(--fg-mute); font-size:.9rem;">
       Sections 01–07 describe the system top to bottom; 08–09 are the parts a reviewer scrutinises
       hardest — the data traps handled correctly and the compliance posture; 10–13 cover how it is
-      verified, shipped, and where it is honest about its own limits.</p>
+      verified, shipped, and where it is honest about its limits; 14–17 are the deep specs — the
+      forward-looking scenario engine, the data model, the operational and security envelope, and
+      the exact contract the language model is held to.</p>
   </section>
 
   <!-- 01 EXEC SUMMARY -->
@@ -170,7 +176,7 @@
     <figure>
       <div class="figwrap">
       <svg viewBox="0 0 1000 900" role="img" preserveAspectRatio="xMidYMin meet"
-           aria-label="Layered architecture: twelve source files feed a currency-aware data model and look-through resolver; six deterministic detectors produce ranked findings; a governance boundary separates the deterministic engine from a single grounded-explanation LLM component; the RM workbench renders book triage, client story and accept/edit/dismiss controls to the Relationship Manager.">
+           aria-label="Layered architecture: twelve source files feed a currency-aware data model and look-through resolver; eight deterministic detectors produce ranked findings; a governance boundary separates the deterministic engine from a single grounded-explanation LLM component; the RM workbench renders book triage, client story and accept/edit/dismiss controls to the Relationship Manager.">
         <defs>
           <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c6a763"/></marker>
           <marker id="arwt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6fb2c6"/></marker>
@@ -243,7 +249,7 @@
         <text x="500" y="826" text-anchor="middle" class="ts" style="fill:#7c8aa1">Client advisory conversation</text>
       </svg>
       </div>
-      <figcaption><b>Fig 1 — the pipeline.</b> The book descends one path. The six detectors compute
+      <figcaption><b>Fig 1 — the pipeline.</b> The book descends one path. The eight detectors compute
         every signal and rank the twenty clients; the dashed line is the governance boundary. Only
         below it does a language model act. Remove the model and the engine still produces the entire
         triage — the page just loses its narration.</figcaption>
@@ -259,7 +265,7 @@
         <tr><td>Signal engine</td><td>Pure Python standard library</td><td>No third-party runtime dependency — runs anywhere a bank permits Python, trivial to audit, nothing to <span class="path">pip install</span>.</td></tr>
         <tr><td>Explanation</td><td>Claude (Anthropic API), <span class="path">claude-opus-5</span></td><td>Only for turning computed findings into language; adaptive thinking; keyed, cached, and never on the critical path for the numbers.</td></tr>
         <tr><td>Workbench</td><td>Streamlit</td><td>Python-native UI over the engine's JSON — fastest path to the three-zone RM interface.</td></tr>
-        <tr><td>Tests</td><td><span class="path">unittest</span> (stdlib)</td><td>16 regression tests pin the flagship behaviours; no external runner needed.</td></tr>
+        <tr><td>Tests</td><td><span class="path">unittest</span> (stdlib)</td><td>21 regression tests pin the flagship behaviours; no external runner needed.</td></tr>
         <tr><td>Deploy</td><td>Docker · Streamlit Community Cloud</td><td>A container image for a bank-realistic deploy; Community Cloud for a public demo URL.</td></tr>
       </tbody>
     </table></div>
@@ -294,23 +300,96 @@
 
   <!-- 04 ENGINE -->
   <section id="s04">
-    <h2><span class="num">04</span> The signal engine — six detectors</h2>
-    <div class="prose"><p>Each detector reads the joined Book and a client, and returns zero or more
-      Findings. Every number is computed from the files; the detectors never guess and are honest
-      where the data is ambiguous. The book-wide engine runs all six across the twenty clients and
-      ranks them by <b>Σ severity²</b>, so one genuine emergency outranks a pile of minor drift and
-      the ranking is always explainable.</p></div>
-    <div class="tbl"><table>
-      <thead><tr><th>Detector</th><th>What it computes</th><th>Fires on</th></tr></thead>
-      <tbody>
-        <tr><td>Collateral</td><td>Lombard/term LTV vs the margin-call trigger, traced across all five snapshots.</td><td class="cost"><b>CL-0014</b> at 69.4% vs a 70% call (SEVERE); CL-0002.</td></tr>
-        <tr><td>Concentration</td><td>Single-name exposure across the whole household, <b>looking through</b> structured products and perpetuals to the name; separates managed from custody.</td><td class="cost">CL-0014 Golden Harbour ≈29% (stock + perpetual + accumulator); CL-0013 Helios 22.5%.</td></tr>
-        <tr><td>Mandate</td><td>Allocation-band and single-position breaches, plus binding <b>sustainable-exclusion</b> breaches. Custody accounts excluded.</td><td class="cost">CL-0005 holds excluded energy/palm names in a SUSBAL mandate.</td></tr>
-        <tr><td>Liquidity</td><td>Confirmed near-term needs + uncalled commitments vs what is genuinely sellable — <b>netting pledged collateral</b>, flagging gates and FX mismatch.</td><td class="cost">CL-0014's "free" liquidity halves once the loan is netted; CL-0017's gated sleeve.</td></tr>
-        <tr><td>Income</td><td>Recurring drawdown vs income the portfolio actually pays. Two branches: a real shortfall, or a retiree drawing on impaired long-dated capital.</td><td class="cost">CL-0006 covers only 25% of its draw; <b>CL-0012</b> lives off bonds due 2045 vs a ~2038 horizon.</td></tr>
-        <tr><td>Attribution</td><td>Largest USD moves since baseline, tied to the <b>authoritative</b> <span class="path">event_log</span> by transmission channel.</td><td class="cost">Tech drawdown → "collateralised lending" → CL-0002/CL-0014 collateral.</td></tr>
-      </tbody>
-    </table></div>
+    <h2><span class="num">04</span> The signal engine — eight detectors</h2>
+    <div class="prose"><p>Each detector is a pure function <span class="path">(Book, client_id) → list[Finding]</span>.
+      Every number is computed from the source files; a detector never guesses, and is explicit
+      where the data is ambiguous. A <span class="path">Finding</span> carries a <b>severity</b>
+      (Info · Low · Medium · High · Severe), a one-line headline, a plain-language detail, a
+      <span class="path">facts</span> dict (the exact numbers), and an <span class="path">evidence</span>
+      list (the source rows). The book-wide engine runs all eight across the twenty clients and ranks
+      them by <b>Σ severity²</b> — one genuine emergency outranks a pile of minor drift — with ties
+      broken by the single most-severe finding, then AUM. The full logic per detector:</p></div>
+
+    <h3>1 · Collateral <span class="path">detect_collateral</span></h3>
+    <div class="prose"><p><b>Inputs:</b> <span class="path">credit_facilities.csv</span> — drawn, lending
+      value, the margin-call trigger, and the LTV at each of the five snapshots. <b>Logic:</b>
+      loan-to-value is read as <span class="path">drawn ÷ lending_value</span> (lending value is
+      already advance-rate haircut — not recomputed); the detector measures
+      <span class="path">distance = margin_call − LTV_now</span> and reads the whole 5-snapshot trail
+      to flag a <em>rising</em> line (LTV up ≥ 3pts from the first snapshot). <b>Severity:</b>
+      distance ≤ 1.5 → Severe · ≤ 4 → High · ≤ 8 → Medium · else rising → Low · else silent.
+      <b>Fires on</b> CL-0014 (69.4% vs a 70% call → 0.6pt, Severe) and CL-0002 (73.7% vs 75%).</p></div>
+
+    <h3>2 · Concentration <span class="path">detect_concentration</span></h3>
+    <div class="prose"><p><b>Inputs:</b> today's holdings, <span class="path">instruments</span>
+      (underlying_reference, concentration_limit_applies), the mandate single-position limit.
+      <b>Logic:</b> each holding is resolved through §05 to the single issuer it really carries risk
+      to; the values are aggregated <em>across every portfolio the client holds</em>, keeping
+      <b>managed</b> and <b>custody</b> value separate. A name is flagged when it exceeds the tighter
+      of the mandate limit or 10% of the book. A limit <em>breach</em> can exist only in the managed
+      portion; a custody-only stake is framed as "a concentration to discuss, not a breach to
+      correct." <b>Severity:</b> custody-only → High if ≥ 25% else Medium; otherwise over-limit →
+      High (Severe if ≥ 25% and over-limit) · ≥ 15% → Medium · else Low. <b>Fires on</b> CL-0014
+      (Golden Harbour ≈ 29% via stock + perpetual + accumulator, Severe), CL-0013 (Helios 22.5% once
+      the ELN is counted), CL-0001 (Bara Nusantara 41%, custody legacy).</p></div>
+
+    <h3>3 · Mandate &amp; exclusions <span class="path">detect_mandate</span></h3>
+    <div class="prose"><p><b>Inputs:</b> managed portfolios only (custody is not measured against a
+      mandate), <span class="path">mandates.csv</span> bands + single-position limit + notes, and
+      <span class="path">instruments.sustainability_excluded</span>. <b>Logic:</b> per managed
+      portfolio, each asset-class weight is checked against its [min, max] band (breach at > max + 0.5
+      or < min − 0.5) → Medium; for a sustainable mandate (notes carry binding exclusions), any
+      held instrument flagged <span class="path">excluded = Y</span> → High. The copy distinguishes
+      drift from a client-directed position (check the notes / any waiver). <b>Fires on</b> CL-0005
+      (an energy fund + a palm-oil name inside a Sustainable Balanced mandate).</p></div>
+
+    <h3>4 · Liquidity <span class="path">detect_liquidity</span></h3>
+    <div class="prose"><p><b>Inputs:</b> holdings (liquidity_tier), facilities (drawn),
+      <span class="path">planned_cash_needs</span> (certainty, currency, timing),
+      <span class="path">commitments</span> (uncalled). <b>Logic:</b> liquid = Daily + Weekly tiers,
+      then <b>net the drawn facility</b> (a prior claim) → genuinely free liquidity; needs = confirmed
+      / likely cash needs inside an 18-month horizon (converted to USD) + uncalled private-market
+      commitments; coverage = free ÷ needs. A currency mismatch (obligation not in the liquid
+      currencies) and gated funds are flagged. <b>Severity:</b> coverage &lt; 1 → High · &lt; 1.5 →
+      Medium · gated &amp; &lt; 3 → Low. <b>Fires on</b> CL-0014 (USD 19m "liquid" → USD 12m free once
+      the loan is netted) and CL-0017 (three-quarter-gated private credit + USD 15.8m uncalled).</p></div>
+
+    <h3>5 · Income &amp; drawdown suitability <span class="path">detect_income_suitability</span></h3>
+    <div class="prose"><p><b>Inputs:</b> recurring consumption in <span class="path">planned_cash_needs</span>,
+      income in <span class="path">transactions</span> (coupons, dividends, distributions, deposit
+      interest), fixed-income unrealised P&amp;L and maturities in holdings, and the client's life
+      stage and horizon. <b>Logic:</b> annual draw vs the income the book actually paid (annualised
+      from the observed quarters); coverage = income ÷ draw. Two honest branches — (A) coverage &lt;
+      0.9 is a genuine <em>shortfall</em>, funded by selling capital (High if &lt; 0.6 else Medium);
+      (B) coverage ≥ 0.9 but the client draws on a bond book <em>below cost</em> with maturities
+      <em>beyond their horizon</em> is a capital-quality flag (High if retired else Medium) — the
+      README's flagship case, framed as a conversation, not a cash-flow alarm. <b>Fires on</b> CL-0006
+      (income covers only 25% of a USD 5m/yr draw) and CL-0012 (income covers the draw, but he is 71,
+      retired, drawing on bonds due 2045 vs a ~2038 horizon).</p></div>
+
+    <h3>6 · Event attribution <span class="path">detect_attribution</span></h3>
+    <div class="prose"><p><b>Inputs:</b> holdings at the year-end baseline vs today (instruments held
+      at both ends), and <span class="path">event_log.csv</span> (primary_transmission). <b>Logic:</b>
+      the largest USD declines per instrument are matched to the most-severe event whose
+      transmission channel keyword maps to the holding's sector / asset class / region. Severity is
+      capped at Medium — this is an <em>explanation</em>, not an alarm. <b>Fires on</b> the 5 Jun tech
+      drawdown, whose channel explicitly names "collateralised lending", tying it to the collateral
+      pressure on CL-0002 and CL-0014.</p></div>
+
+    <h3>7 · Currency mismatch <span class="path">detect_currency_mismatch</span></h3>
+    <div class="prose"><p><b>Inputs:</b> holdings (instrument_ccy), <span class="path">planned_cash_needs</span>
+      (currency, amount), and the FX series in <span class="path">market_context</span>. <b>Logic:</b>
+      obligations are grouped by currency; a currency is "mismatched" when the client owes materially
+      in it (≥ USD 1m or 5% of the book) but holds &lt; 20% of the book in it — meaning other assets
+      must be converted at the exchange rate of the day. The YTD move of the lead obligation currency
+      is stated directionally. <b>Severity:</b> ≥ 15% of book → High else Medium. <b>Fires on</b>
+      CL-0001 (an SGD 9m property deposit due against a largely USD book).</p></div>
+
+    <h3>8 · KYC / periodic review <span class="path">detect_review_due</span></h3>
+    <div class="prose"><p><b>Inputs:</b> <span class="path">clients.kyc_review_due</span> vs today
+      (2026-08-26). <b>Logic:</b> days to due — overdue → High · ≤ 45 days → Medium · ≤ 90 days → Low
+      · else silent. An operational-compliance nudge so advice sits on an up-to-date file.
+      <b>Fires on</b> CL-0011 (5 days), CL-0008 (16), CL-0014 (27), CL-0004 (35), and others.</p></div>
   </section>
 
   <!-- 05 LOOK-THROUGH -->
@@ -413,7 +492,7 @@
   <!-- 10 TESTING -->
   <section id="s10">
     <h2><span class="num">10</span> Testing strategy</h2>
-    <div class="prose"><p>16 standard-library tests pin the behaviour the demo depends on — run with
+    <div class="prose"><p>21 standard-library tests pin the behaviour the demo depends on — run with
       <span class="path">python -m unittest discover -s tests</span>:</p>
       <ul>
         <li><b>Loading &amp; FX</b> — book shape (20/24/1,015/62/393) and USD conversion for HKD and EUR.</li>
@@ -434,13 +513,13 @@
 │   ├── data_model.py           <span class="c"># Phase 0 · joined, currency-aware Book</span>
 │   ├── lookthrough.py          <span class="c"># Phase 0 · positions → single issuer</span>
 │   ├── findings.py             <span class="c"># severity + Finding types</span>
-│   ├── detectors.py            <span class="c"># Phase 1 · six detectors</span>
+│   ├── detectors.py            <span class="c"># Phase 1 · eight detectors (＋ detectors_extra)</span>
 │   ├── engine.py               <span class="c"># Phase 1 · run + rank the book</span>
 │   ├── explainer.py            <span class="c"># Phase 2 · grounded NL (Claude)</span>
 │   └── cli.py / __main__.py    <span class="c"># CLI triage</span>
 ├── streamlit_app.py            <span class="c"># Phase 3 · RM workbench</span>
 ├── scripts/pregenerate.py      <span class="c"># warm the explanation cache</span>
-├── tests/test_engine.py        <span class="c"># 16 unittests</span>
+├── tests/test_engine.py        <span class="c"># 21 unittests</span>
 ├── data/                       <span class="c"># 12 synthetic source files</span>
 ├── docs/                       <span class="c"># architecture.html · blueprint.html · DATA_DICTIONARY.md</span>
 ├── requirements.txt · runtime.txt · Dockerfile
@@ -460,7 +539,7 @@
   <section id="s12">
     <h2><span class="num">12</span> Roadmap</h2>
     <div class="prose"><ul>
-      <li><b>Scenario toggle</b> — "Middle East de-escalates / worsens", re-pricing exposures from the market series to show forward risk.</li>
+      <li><b>Shipped since v1</b> — the scenario toggle (§14) and the currency-mismatch <li><b>Scenario toggle</b> — "Middle East de-escalates / worsens", re-pricing exposures from the market series to show forward risk.</li>amp; KYC-review detectors are now built.</li>
       <li><b>Meeting pack export</b> — a one-page prep sheet per client the RM can take into the room.</li>
       <li><b>More detectors</b> — currency-mismatch on future liabilities, tax-lot harvesting across a household, KYC-review-due surfacing.</li>
       <li><b>Right-sizing for scale</b> — the stdlib model holds twenty clients in memory; a real book moves to a columnar store behind the same detector interface.</li>
@@ -477,6 +556,117 @@
       <li><b>The engine finds only what it encodes.</b> The model cannot surface a signal the detectors do not compute — a deliberate trade for auditability over open-ended inference.</li>
       <li><b>Synthetic data throughout.</b> No real client, instrument or identifier is present; the habit of treating it as real is part of the exercise.</li>
     </ul></div>
+  </section>
+
+  <!-- 14 SCENARIO ENGINE -->
+  <section id="s14">
+    <h2><span class="num">14</span> The scenario engine — "what could happen next?"</h2>
+    <div class="prose">
+      <p>The five snapshots answer <em>what happened</em>. The scenario engine
+        (<span class="path">scenarios.py</span>) adds the forward-looking half of the brief's advisory
+        flow — <em>what could happen next</em> — as a toggle in the workbench:
+        <b>De-escalation · Today · Escalation</b> of the unresolved 2026 Middle East situation.</p>
+      <h3>Mechanism</h3>
+      <ul>
+        <li><b>Shock vector.</b> Each scenario is a small, transparent set of market moves whose
+          direction and rough magnitude match what the snapshots actually contain — Escalation:
+          Brent +30%, gold +10%, HK property −12%, UST +40bp; De-escalation the mirror.</li>
+        <li><b>Per-instrument sensitivity.</b> A holding's price change is derived from its own
+          attributes — <span class="path">sector · region · asset_class · underlying_reference</span>
+          — via an explicit sensitivity table (energy up, HK property down, long-duration bonds down
+          on higher yields, gold up, tech down, cash flat).</li>
+        <li><b>Re-derivation.</b> Every holding is re-priced, then the figures the RM cares about are
+          recomputed: book value change, each facility's LTV (and whether it now crosses the margin
+          call), and single-name look-through exposure.</li>
+        <li><b>Re-ranking.</b> The book re-orders by a scenario stress score (a margin breach
+          dominates, then drawdown), so the queue answers "who is newly at risk?".</li>
+      </ul>
+      <div class="callout gold"><b>The demo moment.</b> Under Escalation, Lau Chi Ming's LTV moves
+        69.4% → <b>70.4%</b> — across the margin call — and Ravi's 73.7% → 78.1%; both surface to the
+        top of the queue. Flip to De-escalation and Hartono's energy-heavy book gains.</div>
+      <h3>Honesty</h3>
+      <p>It is a <b>stylised sensitivity model, not a full risk engine</b>, and labelled as such on
+        screen with its shock vector visible. Crucially it stays inside the governance boundary: the
+        shocks and sensitivities are computed in <span class="path">scenarios.py</span> and shown to
+        the RM — never produced by a language model. Two regression tests pin the flagship behaviour
+        (Lau breaches under Escalation; the book recovers under De-escalation).</p>
+    </div>
+  </section>
+
+  <!-- 15 DATA MODEL -->
+  <section id="s15">
+    <h2><span class="num">15</span> Data model &amp; joins</h2>
+    <div class="prose">
+      <p>All twelve files load into one in-memory <span class="path">Book</span>
+        (<span class="path">data_model.py</span>) — pure standard library, indexed for the access
+        patterns the detectors need. Twenty clients is small enough to hold whole in memory and read
+        by hand.</p>
+      <h3>The join graph</h3>
+      <pre class="tree">clients ─┬─ portfolios ─── holdings ─── instruments   <span class="c"># prices, look-through, ESG flags</span>
+         │                     │
+         │                     └── mandates              <span class="c"># bands · single-position · exclusions</span>
+         ├─ credit_facilities  (collateral_portfolio_id → portfolios)
+         ├─ planned_cash_needs · commitments · transactions
+         └─ rm_notes                                     <span class="c"># subjective; often contradicts the numbers</span>
+market_context ── FX &amp; market series, keyed by snapshot_date
+event_log ────── authoritative 2026 events + transmission channels</pre>
+      <h3>Currency</h3>
+      <p>Every value is reduced to USD from <span class="path">holdings.market_value_usd</span> at each
+        snapshot — never the base-currency <span class="path">aum_&lt;date&gt;</span> columns. The FX
+        table (ten pairs × five snapshots) drives conversion of cash needs and drawn facilities, with
+        each pair's quote direction (per-USD vs USD-per) handled explicitly.</p>
+      <h3>Access surface</h3>
+      <p>The <span class="path">Book</span> exposes <span class="path">holdings_of · portfolios_of ·
+        facilities_of · notes_of · cash_needs_of · transactions_of · total_usd</span> and a
+        <span class="path">client_360()</span> that assembles everything about one client — the
+        substrate every detector reads.</p>
+    </div>
+  </section>
+
+  <!-- 16 SECURITY / OPS -->
+  <section id="s16">
+    <h2><span class="num">16</span> Security, operations &amp; error handling</h2>
+    <div class="prose">
+      <ul>
+        <li><b>No data egress.</b> The engine runs locally; client data never leaves it. Only the
+          already-computed findings, the client profile and the cited event rows are sent to the
+          explanation model — and only when a key is present.</li>
+        <li><b>Key handling.</b> The API key is read from the environment (or Streamlit Secrets,
+          bridged to the environment) and never written to disk or committed; <span class="path">.env</span>
+          and <span class="path">.wi_cache/</span> are git-ignored.</li>
+        <li><b>Fault isolation.</b> The engine wraps each detector: a fault in one becomes an Info-level
+          "could not run" finding rather than sinking the client's whole analysis.</li>
+        <li><b>Graceful degradation.</b> No key or no network → the explainer returns a deterministic
+          summary assembled from the findings; the app is fully functional offline.</li>
+        <li><b>Determinism &amp; caching.</b> Explanations are cached to disk keyed by a hash of their
+          exact inputs, so they regenerate when the inputs change and never drift silently.</li>
+        <li><b>Operability.</b> A stdlib engine plus one container image (<span class="path">Dockerfile</span>,
+          non-root runtime port, healthcheck) runs on any bank-approved Python host; the UI is served
+          by Streamlit or as a static page.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 17 EXPLAINER CONTRACT -->
+  <section id="s17">
+    <h2><span class="num">17</span> The explainer contract</h2>
+    <div class="prose">
+      <p>The Phase-2 layer (<span class="path">explainer.py</span>) is the only component that calls a
+        language model, and it is held to a strict contract.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Aspect</th><th>Contract</th></tr></thead>
+        <tbody>
+          <tr><td>Model</td><td class="cost"><span class="path">claude-opus-5</span>, adaptive thinking; key from the environment.</td></tr>
+          <tr><td>Input</td><td class="cost">Only the computed findings (facts), the client profile &amp; objectives, the RM notes, and the cited event rows — assembled by <span class="path">build_context()</span>.</td></tr>
+          <tr><td>Instruction</td><td class="cost">Reason strictly from the supplied facts; introduce no number, holding or world event not in the input; prefer "we should check X" over an unsupported assertion; suggest actions "to consider", never instructions.</td></tr>
+          <tr><td>Output</td><td class="cost">A strict JSON object — <span class="path">situation</span> (3–4 sentences), <span class="path">talking_points</span> (2–4), <span class="path">watch_outs</span> (1–3). Parsed leniently; a malformed reply falls back.</td></tr>
+          <tr><td>Refusal / error</td><td class="cost">A refusal or any exception degrades to the deterministic summary; the app never blocks on the model.</td></tr>
+          <tr><td>Caching</td><td class="cost">Keyed by <span class="path">sha256(context + model + prompt version)</span>; pre-generate the hero clients before a demo so it runs with no network.</td></tr>
+        </tbody>
+      </table></div>
+      <p>The result is the compliance guarantee in one line: <b>the model can produce no number,
+        because it is never given the job of producing one.</b></p>
+    </div>
   </section>
 
   <footer>
