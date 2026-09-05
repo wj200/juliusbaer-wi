@@ -262,7 +262,7 @@ const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 /* state */
 const KEY='wi_decisions_v1';
 let decisions = {}; try{decisions=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
-const state = { sel:DATA.clients[0].id, view:'queue', sort:'priority', scenario:'base',
+const state = { sel:(DATA.focus||DATA.clients[0].id), view:'queue', sort:'priority', scenario:'base',
   query:'', sevOff:new Set(), openSig:new Set() };
 const byId = Object.fromEntries(DATA.clients.map(c=>[c.id,c]));
 

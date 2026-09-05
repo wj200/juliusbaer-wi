@@ -91,7 +91,14 @@ def _ltv(book, cid):
     return out
 
 
-def build_payload(book) -> dict:
+def build_payload(book, live=None, focus=None) -> dict:
+    """Build the dashboard payload.
+
+    live  — optional {client_id: explanation-dict}; overrides the offline
+            explanation for those clients (used for live/grounded regeneration).
+    focus — optional client_id the page should open on.
+    """
+    live = live or {}
     dossiers = analyse_book(book)
     counts = defaultdict(int)
     for d in dossiers:
@@ -99,7 +106,7 @@ def build_payload(book) -> dict:
     clients = []
     for rank, d in enumerate(dossiers, 1):
         c = book.clients[d.client_id]
-        exp = explain(book, d)
+        exp_dict = live.get(d.client_id) or explain(book, d).as_dict()
         clients.append({
             "rank": rank,
             "id": d.client_id,
@@ -116,7 +123,7 @@ def build_payload(book) -> dict:
             "top_severity": d.top_severity.label,
             "lead": d.lead_finding.headline if d.lead_finding else "No material signals this cycle",
             "findings": [f.as_dict() for f in d.sorted_findings()],
-            "explanation": exp.as_dict(),
+            "explanation": exp_dict,
             "charts": {
                 "value_series": _value_series(book, d.client_id),
                 "allocation": _allocation(book, d.client_id),
@@ -131,6 +138,7 @@ def build_payload(book) -> dict:
     return {
         "as_of": TODAY,
         "snapshots": SNAPSHOTS,
+        "focus": focus,
         "book": {
             "total_aum_usd": round(sum(d.total_usd for d in dossiers), 0),
             "n_clients": len(dossiers),
