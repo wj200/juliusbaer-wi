@@ -295,6 +295,21 @@ const IMG = "/tmp/claude-0/-home-user-juliusbaer/ce358b8c-70a4-5ca7-9728-984bd98
   s.addNotes("Fidelity to the case. We follow the exact advisory flow the brief describes — signal, understanding, decision. We go deep on the two or three clients the brief tells us to rather than shallow across twenty: Lau for collateral, Cheung for income suitability, Fong for household liquidity. We ground everything in the event log, the authoritative source, so the system never free-associates about 2026. And we notice the data's imperfections — currency, custody, valuation lag — and say so, because the brief rewards noticing. On the right, it maps cleanly onto all four rubric criteria: client-centric innovation, user experience, technical and operational feasibility, and strategic impact.");
 })();
 
+// ============================================================ 12b · SCENARIO
+(() => {
+  const s = p.addSlide(); bg(s);
+  kicker(s, "How it works · what could happen next"); title(s, "Scenario toggle — forward-looking, still deterministic");
+  s.addImage({ path: IMG+"deck_scenario.png", x:0.6, y:1.85, w:9.2, h:9.2/1.44, rounding:true });
+  const hl = [["De-escalation · Today · Escalation","One toggle re-prices every holding under a market shock."],
+              ["The gauge crosses the line","Under Escalation, Lau's LTV 69.4% → 70.4% — margin call breached."],
+              ["The book re-ranks","Ordered by scenario stress; who is newly at risk rises to the top."],
+              ["Still auditable","The shock vector and sensitivities are computed and shown — never by the model."]];
+  hl.forEach((h,i)=>{ const y=1.95+i*1.28; s.addText(h[0], { x:10.0, y, w:2.95, h:0.5, fontFace:HEAD, bold:true, color:GOLD, fontSize:14, isTextBox:true, margin:0, lineSpacing:17 });
+    s.addText(h[1], { x:10.0, y:y+0.55, w:2.95, h:0.85, fontFace:BODY, color:SOFT, fontSize:11.5, isTextBox:true, margin:0, lineSpacing:15 }); });
+  foot(s,13);
+  s.addNotes("The scenario toggle adds the 'what could happen next' half of the brief's flow. One control — De-escalation, Today, Escalation — re-prices every holding under a stylised shock vector grounded in the real 2026 moves. The demo moment: flip to Escalation and Lau's loan-to-value swings from 69.4% straight across the 70% margin call, the gauge goes red, and the whole book re-ranks by scenario stress so the newly-at-risk clients rise to the top. And it stays inside the governance boundary — the shocks and sensitivities are deterministic and shown on screen, never produced by the model. It's labelled an illustrative sensitivity, not a full risk engine, which is exactly the honest framing the brief rewards.");
+})();
+
 // ============================================================ 13 · CLOSE
 (() => {
   const s = p.addSlide(); bg(s, "0A111C");
@@ -305,7 +320,7 @@ const IMG = "/tmp/claude-0/-home-user-juliusbaer/ce358b8c-70a4-5ca7-9728-984bd98
   s.addText("Help RMs understand what matters, anticipate what may happen next, and turn complex portfolios into timely, personalised, trustworthy advice — while the RM stays central, and owns every decision.", { x:0.9, y:3.95, w:9.8, h:1.1, fontFace:BODY, color:SOFT, fontSize:15, isTextBox:true, margin:0, lineSpacing:23 });
   // next
   s.addText("WHAT'S NEXT", { x:0.9, y:5.25, w:5, h:0.3, fontFace:BODY, bold:true, charSpacing:2, color:GOLD, fontSize:11.5, isTextBox:true, margin:0 });
-  s.addText("Scenario toggle (Middle East escalate / de-escalate, re-pricing exposures live)  ·  one-page meeting pack export  ·  household-level tax-lot optimisation", { x:0.9, y:5.6, w:11.4, h:0.7, fontFace:BODY, color:IVORY, fontSize:13, isTextBox:true, margin:0, lineSpacing:19 });
+  s.addText("One-page meeting-pack export  ·  household-level tax-lot optimisation  ·  right-sizing the engine to a columnar store behind the same detector interface", { x:0.9, y:5.6, w:11.4, h:0.7, fontFace:BODY, color:IVORY, fontSize:13, isTextBox:true, margin:0, lineSpacing:19 });
   s.addText("Synthetic data throughout · the RM owns the advice", { x:0.9, y:6.7, w:11, h:0.3, fontFace:BODY, italic:true, color:MUTE, fontSize:11, isTextBox:true, margin:0 });
   s.addNotes("To close, the north star from the brief: build the intelligence layer between portfolio data and the Relationship Manager. That's exactly what we built — help RMs understand what matters, anticipate what's next, and turn complex portfolios into timely, personalised, trustworthy advice, with the RM kept central and owning every decision. What's next is a scenario toggle that re-prices exposures for a Middle-East escalation live, a one-page meeting-pack export, and household-level tax optimisation. Everything is synthetic, and the RM always owns the advice. Thank you.");
 })();
