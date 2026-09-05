@@ -41,11 +41,13 @@ st.markdown(
     <style>
       #MainMenu, header, footer {visibility:hidden;}
       .stApp {background:#0b111b;}
-      .block-container {padding:8px 18px 0 !important; max-width:100% !important;}
+      .block-container {padding:0 !important; max-width:100% !important;}
       [data-testid="stAppViewBlockContainer"] {padding:0 !important;}
       iframe {border:none !important;}
-      .ctlbar label, .ctlbar p {color:#a7adba !important;}
-      div[data-testid="stHorizontalBlock"] {align-items:end;}
+      section[data-testid="stSidebar"] {background:#0e1522; border-right:1px solid #1c2740;}
+      section[data-testid="stSidebar"] * {color:#c7cede;}
+      section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
+      section[data-testid="stSidebar"] h3 {color:#e7ecf5;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -74,27 +76,27 @@ ss.setdefault("status", "")
 
 key_present = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 
-# ---------------------------------------------------------------- control bar
-st.markdown('<div class="ctlbar"></div>', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns([4, 2.2, 2.2, 3.4])
-with c1:
+# ------------------------------------------------------- live AI controls (sidebar)
+# The dashboard iframe is deterministic and cannot reach the network. These
+# controls run the real Claude call in Python and feed the grounded text back in,
+# while keeping the command-deck dashboard itself full-bleed and uncluttered.
+with st.sidebar:
+    st.markdown("### Live AI briefing")
     focus = st.selectbox(
-        "Client focus (for live explanation)", ranked_ids,
+        "Client focus", ranked_ids,
         index=ranked_ids.index(ss.focus) if ss.focus in ranked_ids else 0,
         format_func=lambda cid: f"#{ranked_ids.index(cid)+1}  {name_of[cid]}",
     )
     ss.focus = focus
-with c2:
     gen_one = st.button("⟳ Generate live explanation", use_container_width=True, type="primary")
-with c3:
     gen_top = st.button("⟳ Generate top 5 (live)", use_container_width=True)
-with c4:
     st.caption(
         ("🟢 Live key detected — explanations call Claude in real time."
          if key_present else
          "⚪ No API key — using deterministic offline explanations. Set ANTHROPIC_API_KEY in Secrets.")
-        + (("  ·  " + ss.status) if ss.status else "")
     )
+    if ss.status:
+        st.caption(ss.status)
 
 
 def _regen(cid: str):
