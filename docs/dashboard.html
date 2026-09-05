@@ -125,6 +125,8 @@
 
   /* explanation */
   .expl{padding:20px 22px; border-left:2px solid var(--cyan)}
+  .expl .eh{display:flex; align-items:center; gap:12px; margin-bottom:4px}
+  .expl .eh .et{font-family:"Spectral",serif; font-size:1.12rem; color:var(--ink); font-weight:600; letter-spacing:.01em}
   .badge{font-family:"IBM Plex Mono"; font-size:.66rem; letter-spacing:.08em; padding:3px 9px; border-radius:999px;
     border:1px solid var(--edge); color:var(--cyan); background:rgba(201,168,106,.06)}
   .badge.off{color:var(--mute)}
@@ -485,19 +487,19 @@ function renderDossier(){
       <div class="nums"><span>Book ${sd.value_delta_pct>=0?'+':''}${sd.value_delta_pct}%</span>${baseLtv?`<span>LTV ${baseLtv.now}% → ${sd.ltv[0]?sd.ltv[0].now:baseLtv.now}%${sd.breach?` <span class='breachtag'>⚠ margin call breached</span>`:` · ${sd.ltv[0]?sd.ltv[0].distance:baseLtv.distance}pt to call`}</span>`:''}</div>
     </div>`:''}
 
+    <div class="panel expl">
+      <div class="eh"><span class="et">Relationship-manager briefing</span><span class="badge ${e.grounded_by_model?'':'off'}">${e.grounded_by_model?'◇ grounded by Claude':'○ offline · deterministic'}</span></div>
+      <div class="sit">${esc(e.situation)}</div>
+      ${e.talking_points&&e.talking_points.length?`<h4>Talking points / actions to consider</h4><ul>${e.talking_points.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+      ${e.watch_outs&&e.watch_outs.length?`<h4>Watch-outs &amp; things to verify</h4><ul class="watch">${e.watch_outs.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+    </div>
+
     <div class="grid2">
       <div class="panel card"><h3><span class="dot"></span>Portfolio value · 5 snapshots</h3><div id="cValue"></div></div>
       <div class="panel card"><h3><span class="dot"></span>${secondChart.h}</h3><div id="cSecond">${secondChart.svg}</div></div>
     </div>
 
     <div class="panel card"><h3><span class="dot"></span>Single-name exposure · look-through${scActive?' · '+(state.scenario==='escalate'?'Escalation':'De-escalation'):''}</h3><div id="cExp">${chartExposure(expo)}</div></div>
-
-    <div class="panel expl">
-      <span class="badge ${e.grounded_by_model?'':'off'}">${e.grounded_by_model?'◇ grounded by Claude':'○ offline · deterministic'}</span>
-      <div class="sit">${esc(e.situation)}</div>
-      ${e.talking_points&&e.talking_points.length?`<h4>Talking points / actions to consider</h4><ul>${e.talking_points.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
-      ${e.watch_outs&&e.watch_outs.length?`<h4>Watch-outs &amp; things to verify</h4><ul class="watch">${e.watch_outs.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
-    </div>
 
     <div class="panel card"><h3><span class="dot"></span>Signals — ${c.findings.length}</h3><div id="sigs"></div></div>`;
 

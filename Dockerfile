@@ -23,12 +23,14 @@ COPY streamlit_app.py .
 EXPOSE 8080
 
 # Streamlit, bound for a container: no telemetry, listen on all interfaces.
-ENV STREAMLIT_SERVER_PORT=8080 \
+# Cloud Run injects the port to listen on via $PORT (default 8080); honour it.
+ENV PORT=8080 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 
 HEALTHCHECK --interval=30s --timeout=4s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/_stcore/health')" || exit 1
+  CMD python -c "import os,urllib.request; urllib.request.urlopen('http://localhost:%s/_stcore/health' % os.environ.get('PORT','8080'))" || exit 1
 
-CMD ["streamlit", "run", "streamlit_app.py"]
+# Shell form so $PORT is expanded at runtime.
+CMD streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
